@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gosimine"
+version = "0.1.0"
+description = "A local-first research workspace for mining companies"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["PySide6>=6.8"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+gosimine = "gosimine.app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

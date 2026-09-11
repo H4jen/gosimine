@@ -1,0 +1,1 @@
+"""Gosimine desktop research workspace."""
