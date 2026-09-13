@@ -28,5 +28,7 @@ Do not require approval for each individual action within an agreed work package
 - Treat `data/gosimine.sqlite3` as user data. Never delete, reset, or rewrite it during development or tests.
 - Use parameterized SQLite queries, explicit commits for writes, and typed dataclasses for persisted entities.
 - Make schema changes backward-compatible and cover database behavior with temporary-database tests in `tests/`.
+- Validate every change. Use focused automated tests for behavior changes; use the narrowest applicable check for documentation, configuration, or other changes.
+- Run `python3 -m pytest` after code changes when the environment supports it. Report the validation result, or why no applicable validation could run.
 - Preserve existing user changes and avoid unrelated refactors.
 - Do not commit, create branches, install dependencies, or change project tooling unless the user explicitly approves it.

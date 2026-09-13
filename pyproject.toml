@@ -7,8 +7,9 @@ name = "gosimine"
 version = "0.1.0"
 description = "A local-first research workspace for mining companies"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
-dependencies = ["PySide6>=6.8"]
+dependencies = ["PySide6>=6.8", "yfinance>=0.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

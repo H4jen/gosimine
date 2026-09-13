@@ -19,7 +19,7 @@ All data belongs to one miner, identified by a Yahoo Finance ticker.
 
 ### Miner Catalog
 
-The miner catalog is a shared, curated list of available mining-stock listings. It is imported into SQLite from a versioned seed catalog on a new installation.
+The miner catalog is a shared, curated list of available mining-stock listings. It is imported into SQLite from a versioned seed catalog on a new installation. A separate explicit re-population operation imports an updated seed into an existing database.
 
 Catalog records store the listing's identity and classification: name, Yahoo ticker, exchange, trading currency, commodities, status, source, and catalog version. Catalog data is maintained outside the desktop application by a repeatable script and is reviewed before publication.
 
@@ -38,7 +38,7 @@ A miner stores stable identity and classification:
 - Primary commodity
 - Lifecycle status
 
-The Yahoo ticker is normalized to uppercase and unique.
+The Yahoo ticker is normalized to uppercase and unique. Trading currency belongs to the listing, not to the application setting. For example, separate `VZLA` and `VZLA.TO` records may use `USD` and `CAD` respectively.
 
 Lifecycle status is a controlled, historical value with an as-of date and source. The current lifecycle status is the newest status snapshot. The initial values are: explorer, developer/permitting, construction, commissioning/ramp-up, producer, expansion, care and maintenance, suspended/distressed, and closed/reclaimed.
 
@@ -51,9 +51,13 @@ Common data is sourced information about the listing or company:
 - Company releases, reports, and website material
 - Commodity and foreign-exchange reference data
 
-Each common record states its source, as-of date, retrieval date when imported, and unit/currency where applicable.
+Each common record states its source, as-of date, retrieval date when imported, and unit/currency where applicable. Foreign-exchange snapshots record explicit `from_currency` and `to_currency` pairs; `SEK` is not a special persistence currency. Market refresh derives required pairs from the miner's trading currency and the application display preference.
 
 Market data is refreshed only for selected miners through `yfinance`. Each successful refresh appends a market snapshot. Failed refreshes do not remove or replace the latest valid snapshot.
+
+### Milestones
+
+Milestones record dated company events, expected windows, and status changes such as funding, permits, construction, production, or debt maturity. Each record has a category, title, target date or period, status, detail, and source. New information appends a new milestone rather than replacing the prior expectation.
 
 ### Personal Data
 
@@ -67,6 +71,12 @@ Personal data is the user's research and interpretation:
 - Later: holdings, entry price, and transactions
 
 Common data never overwrites personal data. The dashboard combines both layers while keeping their origins visible.
+
+Saved analysis scenarios are personal miner records. They preserve a name, commodity-price overrides, development-risk factor, and creation time. They do not alter sourced facts or market snapshots.
+
+### Application Settings
+
+Application settings are personal, global preferences rather than miner data. A setting change appends a snapshot with its timestamp and source. The current setting is the newest snapshot for its registered key. The initial `base_currency` display preference defaults to `SEK` when no user snapshot exists; it does not alter a miner's trading currency.
 
 ### Derived Data
 
@@ -86,9 +96,10 @@ Calculation code reads stored inputs and returns a result. It does not silently 
 class Miner:
     id: int
     name: str
-    yahoo_ticker: str
+    ticker: str
     primary_commodity: str
-    status: str
+    stage: str
+    trading_currency: str
 
 
 @dataclass(frozen=True)
@@ -115,6 +126,18 @@ class ResearchEntry:
 
 
 @dataclass(frozen=True)
+class Milestone:
+    id: int
+    miner_id: int
+    category: str
+    title: str
+    target_date: str
+    status: str
+    detail: str
+    source: str
+
+
+@dataclass(frozen=True)
 class MarketSnapshot:
     id: int
     miner_id: int
@@ -123,15 +146,62 @@ class MarketSnapshot:
     market_timestamp: datetime | None
     retrieved_at: datetime
     source: str
+
+
+@dataclass(frozen=True)
+class CommodityPriceSnapshot:
+    id: int
+    commodity: str
+    price: Decimal
+    currency: str
+    unit: str
+    market_timestamp: datetime | None
+    retrieved_at: datetime
+    source: str
+
+
+@dataclass(frozen=True)
+class ExchangeRateSnapshot:
+    id: int
+    from_currency: str
+    to_currency: str
+    rate: Decimal
+    retrieved_at: datetime
+    source: str
+
+
+@dataclass(frozen=True)
+class ApplicationSettingSnapshot:
+    id: int
+    setting: str
+    value: str
+    changed_at: datetime
+    source: str
+
+
+@dataclass(frozen=True)
+class AnalysisScenario:
+    id: int
+    miner_id: int
+    name: str
+    metal_prices_usd: dict[str, Decimal]
+    development_risk_factor: Decimal
+    created_at: datetime
 ```
 
 The first controlled parameter names are:
 
 - `annual_production_ounces`
+- `annual_payable_<metal>_ounces`
 - `aisc_per_ounce`
-- `shares_outstanding`
-- `tax_rate`
-- `lifecycle_status`
+- `mine_life_years`
+- `after_tax_npv_usd`
+- `study_metal_price_<metal>_usd_per_ounce`
+- `study_discount_rate_percent`
+- `cash_usd`
+- `total_debt_usd`
+- `potential_conversion_shares`
+- `basic_shares_outstanding`
 
 The parameter list may grow only through an intentional schema and API decision. Free-form notes belong in research entries rather than arbitrary parameter names.
 
@@ -151,12 +221,22 @@ class Database:
     def get_catalog_miner_by_ticker(
         self, yahoo_ticker: str
     ) -> CatalogMiner | None: ...
+    def select_catalog_miner(self, yahoo_ticker: str) -> Miner: ...
 
     # Miner identity
     def add_miner(...) -> Miner: ...
     def get_miner(self, miner_id: int) -> Miner | None: ...
     def get_miner_by_ticker(self, yahoo_ticker: str) -> Miner | None: ...
     def list_miners(self) -> list[Miner]: ...
+
+    # Personal application preferences
+    def set_application_setting(...) -> ApplicationSettingSnapshot: ...
+    def get_current_application_setting(
+        self, setting: str
+    ) -> ApplicationSettingSnapshot | None: ...
+    def list_application_setting_history(
+        self, setting: str
+    ) -> list[ApplicationSettingSnapshot]: ...
 
     # Historical parameter values
     def add_parameter_snapshot(...) -> ParameterSnapshot: ...
@@ -165,15 +245,31 @@ class Database:
     ) -> list[ParameterSnapshot]: ...
     def list_current_parameters(self, miner_id: int) -> list[ParameterSnapshot]: ...
 
+    # Personal saved analysis assumptions
+    def add_analysis_scenario(...) -> AnalysisScenario: ...
+    def get_analysis_scenario(self, scenario_id: int) -> AnalysisScenario | None: ...
+    def list_analysis_scenarios(self, miner_id: int) -> list[AnalysisScenario]: ...
+
+    # Dated company milestones and targets
+    def add_milestone(...) -> Milestone: ...
+    def list_milestones(self, miner_id: int) -> list[Milestone]: ...
+
     # Personal research memory
     def add_research_entry(...) -> ResearchEntry: ...
     def list_research_entries(self, miner_id: int) -> list[ResearchEntry]: ...
 
     # Selected-miner market data
     def add_market_snapshot(...) -> MarketSnapshot: ...
+    def record_market_refresh(...) -> None: ...
     def get_latest_market_snapshot(
         self, miner_id: int
     ) -> MarketSnapshot | None: ...
+
+    # Commodity market data shared across miners
+    def add_commodity_price_snapshot(...) -> CommodityPriceSnapshot: ...
+    def get_latest_commodity_price(
+        self, commodity: str
+    ) -> CommodityPriceSnapshot | None: ...
 
     def add_exchange_rate_snapshot(...) -> ExchangeRateSnapshot: ...
     def get_latest_exchange_rate(
@@ -191,8 +287,10 @@ The names express intent. The UI asks for the current parameter set or research 
 - Current parameters are the newest snapshot for each parameter, ordered by as-of date and then record ID.
 - Research entries list newest first, ordered by entry date and then record ID.
 - Every parameter snapshot requires a value, unit, as-of date, and non-empty source.
+- Manual parameter entry accepts only controlled parameter names, including the generic `annual_payable_<metal>_ounces` pattern.
 - Every record linked to a miner requires that miner to exist.
 - Market snapshots append on successful refresh and include source, currency, market timestamp, and retrieval timestamp.
+- Commodity-price snapshots append on successful refresh and include the commodity, unit, source, market timestamp, and retrieval timestamp.
 
 ## Persistence Requirements
 
@@ -225,7 +323,6 @@ Analysis code converts those inputs into current and scenario cases. The dashboa
 
 These APIs are intentionally deferred until their user workflows are agreed:
 
-- Settings and base currency
 - Triggers and trigger outcomes
 - Commodity-price scenarios
 - Documents and website/news ingestion
