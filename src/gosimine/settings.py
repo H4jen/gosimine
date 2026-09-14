@@ -19,6 +19,13 @@ BASE_CURRENCY = ApplicationSettingDefinition(
     choices=("SEK", "USD", "CAD", "AUD", "EUR"),
 )
 
+TEXT_SIZE = ApplicationSettingDefinition(
+    key="text_size",
+    label="Text size",
+    default_value="Default",
+    choices=("Default", "Large", "Extra large"),
+)
+
 
 DEFAULT_SCENARIO_GOLD_PRICE = ApplicationSettingDefinition(
     key="default_scenario_gold_price_usd_per_ounce",
@@ -40,6 +47,7 @@ DEFAULT_SCENARIO_SILVER_PRICE = ApplicationSettingDefinition(
 
 APPLICATION_SETTINGS = (
     BASE_CURRENCY,
+    TEXT_SIZE,
     DEFAULT_SCENARIO_GOLD_PRICE,
     DEFAULT_SCENARIO_SILVER_PRICE,
 )

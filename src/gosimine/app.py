@@ -53,6 +53,7 @@ from gosimine.settings import (
     BASE_CURRENCY,
     DEFAULT_SCENARIO_GOLD_PRICE,
     DEFAULT_SCENARIO_SILVER_PRICE,
+    TEXT_SIZE,
 )
 
 
@@ -224,11 +225,17 @@ LIFECYCLE_STATUSES = (
     "Closed / reclaimed",
 )
 
-APPLICATION_STYLE = """
+TEXT_SIZE_POINTS = {"Default": 15, "Large": 17, "Extra large": 19}
+METRIC_WIDTH = 205
+
+
+def application_style(text_size: str = TEXT_SIZE.default_value) -> str:
+    base_size = TEXT_SIZE_POINTS.get(text_size, TEXT_SIZE_POINTS[TEXT_SIZE.default_value])
+    return """
 QMainWindow { background: #d7e0d9; color: #1c2822; }
 QWidget#workspace { background: #d7e0d9; }
 QDialog { background: #ffffff; border: 2px solid #216b4d; color: #1c2822; }
-QWidget { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: 13px; }
+QWidget { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: {base_size}px; }
 QTableWidget, QLineEdit, QComboBox, QDoubleSpinBox, QDateEdit, QTextEdit {
     background: #ffffff; border: 1px solid #cdd6cf; border-radius: 4px; padding: 5px 7px;
 }
@@ -243,29 +250,45 @@ QPushButton {
 QPushButton:hover { background: #eaf1eb; }
 QPushButton#primary-action { background: #216b4d; border-color: #216b4d; color: white; font-weight: 600; }
 QPushButton#primary-action:hover { background: #18563d; }
-QLabel#dashboard-title { color: #183128; font-size: 24px; font-weight: 700; }
+QLabel#dashboard-title { color: #183128; font-size: {title_size}px; font-weight: 700; }
 QLabel#dashboard-subtitle { color: #5a6b61; }
 QLabel#section-heading {
-    border-top: 1px solid #d4ddd6; color: #216b4d; font-size: 15px; font-weight: 700;
+    border-top: 1px solid #d4ddd6; color: #216b4d; font-size: {heading_size}px; font-weight: 700;
     margin-top: 12px; padding-top: 12px;
 }
 QLabel#status-value {
     background: #e2eee6; border: 1px solid #c4d7ca; border-radius: 4px;
     color: #1f583f; font-weight: 600; padding: 8px;
 }
-QLabel#notation-heading { color: #216b4d; font-size: 15px; font-weight: 700; }
-QLabel#notation-text { color: #1c2822; font-size: 13px; }
-QLabel#metric-guide-title { color: #1c2822; font-size: 14px; font-weight: 600; }
+QLabel#notation-heading { color: #216b4d; font-size: {heading_size}px; font-weight: 700; }
+QLabel#notation-text { color: #1c2822; font-size: {base_size}px; }
+QLabel#metric-guide-title { color: #1c2822; font-size: {guide_size}px; font-weight: 600; }
 QLabel#math-formula, QLabel#math-example {
     background: transparent; border: 0; color: #183128; padding: 4px 0;
 }
-QLabel#metric-label { color: #5a6b61; font-size: 11px; }
-QLabel#metric-value { color: #183128; font-size: 20px; font-weight: 700; }
-QLabel#metric-marker { color: #5a6b61; font-size: 11px; font-weight: 400; }
-QLabel#analysis-note { color: #5a6b61; font-size: 10px; }
+QLabel#metric-label {
+    color: #1c2822; font-size: {base_size}px; min-height: 42px;
+    qproperty-wordWrap: true;
+}
+QLabel#metric-value { color: #17365d; font-size: {metric_value_size}px; font-weight: 700; }
+QLabel#metric-marker { color: #1c2822; font-size: {base_size}px; font-weight: 400; }
+QLabel#analysis-note { color: #1c2822; font-size: {base_size}px; }
 QTabWidget::pane { border: 1px solid #cdd6cf; background: white; }
 QTabBar::tab { padding: 7px 12px; }
-"""
+""".replace("{base_size}", str(base_size)).replace(
+        "{title_size}", str(base_size + 13)
+    ).replace("{heading_size}", str(base_size + 3)).replace(
+        "{guide_size}", str(base_size + 1)
+    ).replace("{metric_value_size}", str(base_size + 9))
+
+
+def apply_application_style(database: Database) -> None:
+    application = QApplication.instance()
+    if application is None:
+        return
+    setting = database.get_current_application_setting(TEXT_SIZE.key)
+    text_size = setting.value if setting is not None else TEXT_SIZE.default_value
+    application.setStyleSheet(application_style(text_size))
 
 
 def is_supported_parameter(parameter: str) -> bool:
@@ -278,8 +301,12 @@ def is_supported_parameter(parameter: str) -> bool:
 
 
 def metric_explanation(label: str) -> str:
-    metric_name = label.split(" (", 1)[0]
+    metric_name = label.split(" (", 1)[0].replace("AuEq", "AgEq")
     return METRIC_EXPLANATIONS.get(metric_name, "Derived from the current stored model inputs.")
+
+
+def equivalent_metal_label(primary_commodity: str) -> str:
+    return "AuEq" if primary_commodity.lower() == "gold" else "AgEq"
 
 
 def configure_dialog(dialog: QDialog) -> None:
@@ -1004,6 +1031,7 @@ class MinerDashboard(QWidget):
             QLabel(f"Currency conversion unavailable for {trading_currency}.")
             )
         else:
+            equivalent_label = equivalent_metal_label(self.miner.primary_commodity)
             parameter_snapshots = {snapshot.parameter: snapshot for snapshot in parameters}
             parameter_values = {
                 parameter: snapshot.value
@@ -1042,15 +1070,15 @@ class MinerDashboard(QWidget):
                         trading_currency,
                     ),
                 ),
-                ("AgEq price ($/AgEq oz)", self._format_currency_value(analysis.equivalent_price_usd_per_ounce, "USD", "‡")),
-                ("Margin per AgEq oz ($)", self._format_currency_value(analysis.margin_usd_per_equivalent_ounce, "USD")),
-                ("Annual AgEq oz / share (oz)", f"{analysis.annual_equivalent_ounces_per_share:,.4f}{production_marker}"),
-                ("Lifetime AgEq oz / share (oz)", f"{analysis.lifetime_equivalent_ounces_per_share:,.4f}{lifetime_marker}"),
+                (f"{equivalent_label} price ($/{equivalent_label} oz)", self._format_currency_value(analysis.equivalent_price_usd_per_ounce, "USD", "‡")),
+                (f"Margin per {equivalent_label} oz ($)", self._format_currency_value(analysis.margin_usd_per_equivalent_ounce, "USD")),
+                (f"Annual {equivalent_label} oz / share (oz)", f"{analysis.annual_equivalent_ounces_per_share:,.4f}{production_marker}"),
+                (f"Lifetime {equivalent_label} oz / share (oz)", f"{analysis.lifetime_equivalent_ounces_per_share:,.4f}{lifetime_marker}"),
             ):
                 metric = QWidget()
-                metric.setFixedWidth(180)
+                metric.setFixedWidth(METRIC_WIDTH)
                 metric_layout = QVBoxLayout(metric)
-                metric_layout.setContentsMargins(0, 0, 28, 8)
+                metric_layout.setContentsMargins(0, 0, 16, 8)
                 metric_label = QLabel(label)
                 metric_label.setObjectName("metric-label")
                 metric_label.setToolTip(metric_explanation(label))
@@ -1116,7 +1144,7 @@ class MinerDashboard(QWidget):
             for index, (label, value) in enumerate(detailed_metrics):
                 metric = QWidget()
                 metric_layout = QVBoxLayout(metric)
-                metric_layout.setContentsMargins(0, 8, 28, 8)
+                metric_layout.setContentsMargins(0, 8, 16, 8)
                 metric_label = QLabel(label)
                 metric_label.setObjectName("metric-label")
                 metric_label.setToolTip(metric_explanation(label))
@@ -1125,7 +1153,7 @@ class MinerDashboard(QWidget):
                 )
                 metric_layout.addWidget(metric_label)
                 metric_layout.addWidget(metric_value)
-                metric.setFixedWidth(180)
+                metric.setFixedWidth(METRIC_WIDTH)
                 results.addWidget(metric)
             results.addStretch()
             self.layout.addLayout(results)
@@ -1133,10 +1161,10 @@ class MinerDashboard(QWidget):
             if aisc_snapshot is not None:
                 aisc_row = QHBoxLayout()
                 aisc_metric = QWidget()
-                aisc_metric.setFixedWidth(180)
+                aisc_metric.setFixedWidth(METRIC_WIDTH)
                 aisc_layout = QVBoxLayout(aisc_metric)
-                aisc_layout.setContentsMargins(0, 8, 28, 8)
-                aisc_label = QLabel("AISC ($/AgEq oz)")
+                aisc_layout.setContentsMargins(0, 8, 16, 8)
+                aisc_label = QLabel(f"AISC ($/{equivalent_label} oz)")
                 aisc_label.setObjectName("metric-label")
                 aisc_label.setToolTip(metric_explanation("AISC"))
                 aisc_value = self._metric_value_widget(
@@ -1148,9 +1176,9 @@ class MinerDashboard(QWidget):
                 aisc_row.addWidget(aisc_metric)
                 if mine_life_snapshot is not None:
                     mine_life_metric = QWidget()
-                    mine_life_metric.setFixedWidth(180)
+                    mine_life_metric.setFixedWidth(METRIC_WIDTH)
                     mine_life_layout = QVBoxLayout(mine_life_metric)
-                    mine_life_layout.setContentsMargins(0, 8, 28, 8)
+                    mine_life_layout.setContentsMargins(0, 8, 16, 8)
                     mine_life_label = QLabel("Mine life (years)")
                     mine_life_label.setObjectName("metric-label")
                     mine_life_label.setToolTip(metric_explanation("Mine life"))
@@ -1163,39 +1191,10 @@ class MinerDashboard(QWidget):
                     aisc_row.addWidget(mine_life_metric)
                 aisc_row.addStretch()
                 self.layout.addLayout(aisc_row)
-            resource_snapshot = parameter_snapshots.get("total_resource_equivalent_ounces")
-            if analysis.resource_equivalent_ounces_per_share is not None:
-                resource_row = QHBoxLayout()
-                for label, value in (
-                    (
-                        f"{'Partial ' if has_partial_project_resource else ''}Resource AgEq oz / share (oz)",
-                        f"{analysis.resource_equivalent_ounces_per_share:,.4f}#",
-                    ),
-                    (
-                        f"{'Partial ' if has_partial_project_resource else ''}Resource margin / SP (x)",
-                        self._format_ratio(analysis.resource_margin_to_price, "#"),
-                    ),
-                ):
-                    metric = QWidget()
-                    metric.setFixedWidth(180)
-                    metric_layout = QVBoxLayout(metric)
-                    metric_layout.setContentsMargins(0, 8, 28, 8)
-                    metric_label = QLabel(label)
-                    metric_label.setObjectName("metric-label")
-                    metric_label.setToolTip(metric_explanation(label))
-                    metric_value = self._metric_value_widget(
-                        value, metric_explanation(label)
-                    )
-                    metric_layout.addWidget(metric_label)
-                    metric_layout.addWidget(metric_value)
-                    resource_row.addWidget(metric)
-                resource_row.addStretch()
-                self.layout.addLayout(resource_row)
-            lifetime_margin_row = QHBoxLayout()
             lifetime_margin_metric = QWidget()
-            lifetime_margin_metric.setFixedWidth(180)
+            lifetime_margin_metric.setFixedWidth(METRIC_WIDTH)
             lifetime_margin_layout = QVBoxLayout(lifetime_margin_metric)
-            lifetime_margin_layout.setContentsMargins(0, 8, 28, 8)
+            lifetime_margin_layout.setContentsMargins(0, 8, 16, 8)
             lifetime_margin_label = QLabel("Lifetime margin / SP (x)")
             lifetime_margin_label.setObjectName("metric-label")
             lifetime_margin_label.setToolTip(metric_explanation("Lifetime margin / SP"))
@@ -1205,9 +1204,41 @@ class MinerDashboard(QWidget):
             )
             lifetime_margin_layout.addWidget(lifetime_margin_label)
             lifetime_margin_layout.addWidget(lifetime_margin_value)
-            lifetime_margin_row.addWidget(lifetime_margin_metric)
-            lifetime_margin_row.addStretch()
-            self.layout.addLayout(lifetime_margin_row)
+
+            resource_snapshot = parameter_snapshots.get("total_resource_equivalent_ounces")
+            if analysis.resource_equivalent_ounces_per_share is not None:
+                resource_row = QHBoxLayout()
+                for label, value in (
+                    (
+                        f"{'Partial ' if has_partial_project_resource else ''}Resource {equivalent_label} oz / share (oz)",
+                        f"{analysis.resource_equivalent_ounces_per_share:,.4f}#",
+                    ),
+                    (
+                        f"{'Partial ' if has_partial_project_resource else ''}Resource margin / SP (x)",
+                        self._format_ratio(analysis.resource_margin_to_price, "#"),
+                    ),
+                ):
+                    metric = QWidget()
+                    metric.setFixedWidth(METRIC_WIDTH)
+                    metric_layout = QVBoxLayout(metric)
+                    metric_layout.setContentsMargins(0, 8, 16, 8)
+                    metric_label = QLabel(label)
+                    metric_label.setObjectName("metric-label")
+                    metric_label.setToolTip(metric_explanation(label))
+                    metric_value = self._metric_value_widget(
+                        value, metric_explanation(label)
+                    )
+                    metric_layout.addWidget(metric_label)
+                    metric_layout.addWidget(metric_value)
+                    resource_row.addWidget(metric)
+                resource_row.addWidget(lifetime_margin_metric)
+                resource_row.addStretch()
+                self.layout.addLayout(resource_row)
+            else:
+                lifetime_margin_row = QHBoxLayout()
+                lifetime_margin_row.addWidget(lifetime_margin_metric)
+                lifetime_margin_row.addStretch()
+                self.layout.addLayout(lifetime_margin_row)
             self._render_scenario_analysis(
                 parameters, market_snapshot, analysis, trading_currency, usd_to_trading_rate
             )
@@ -1297,13 +1328,13 @@ class MinerDashboard(QWidget):
                         ),
                     )
                 )
-                metal_price_note = QLabel(f"‡ AgEq metal prices: {prices_text}.")
+                metal_price_note = QLabel(f"‡ {equivalent_label} metal prices: {prices_text}.")
                 metal_price_note.setObjectName("analysis-note")
                 metal_price_note.setWordWrap(True)
                 self.layout.addWidget(metal_price_note)
             if annual_production_snapshot is not None and shares_snapshot is not None:
                 production_note = QLabel(
-                    "§ Annual AgEq oz / share sources: "
+                    f"§ Annual {equivalent_label} oz / share sources: "
                     f"production: {annual_production_snapshot.source} "
                     f"| As of {annual_production_snapshot.as_of_date}."
                 )
@@ -1317,7 +1348,7 @@ class MinerDashboard(QWidget):
                 and not shared_production_life_source
             ):
                 lifetime_note = QLabel(
-                    "¶ Lifetime AgEq oz / share sources: "
+                    f"¶ Lifetime {equivalent_label} oz / share sources: "
                     f"production: {annual_production_snapshot.source} "
                     f"| As of {annual_production_snapshot.as_of_date}; "
                     f"mine life: {mine_life_snapshot.source} "
@@ -1509,6 +1540,7 @@ class MinerDashboard(QWidget):
     def _render_scenario_analysis(
         self, parameters, market_snapshot, current, trading_currency: str, usd_to_trading_rate: float
     ) -> None:
+        equivalent_label = equivalent_metal_label(self.miner.primary_commodity)
         current_prices = self._current_metal_prices(parameters)
         if current_prices is None:
             return
@@ -1559,7 +1591,7 @@ class MinerDashboard(QWidget):
         self.layout.addWidget(future_heading)
         future_metrics = QHBoxLayout()
         metrics = [
-            ("Future AgEq price ($/AgEq oz)", self._format_currency_value(scenario.equivalent_price_usd_per_ounce, "USD")),
+            (f"Future {equivalent_label} price ($/{equivalent_label} oz)", self._format_currency_value(scenario.equivalent_price_usd_per_ounce, "USD")),
             (
                 f"Future annual margin / share ({self._currency_symbol(trading_currency)})",
                 self._format_currency_value(
@@ -1586,7 +1618,7 @@ class MinerDashboard(QWidget):
         for label, value in metrics:
             metric = QWidget()
             metric_layout = QVBoxLayout(metric)
-            metric_layout.setContentsMargins(0, 0, 28, 8)
+            metric_layout.setContentsMargins(0, 0, 16, 8)
             metric_label = QLabel(label)
             metric_label.setObjectName("metric-label")
             metric_label.setToolTip(metric_explanation(label))
@@ -2102,16 +2134,17 @@ class MainWindow(QMainWindow):
 
     def open_settings(self) -> None:
         if SettingsDialog(self.database, self).exec() == QDialog.DialogCode.Accepted:
+            apply_application_style(self.database)
             if isinstance(self.detail, MinerDashboard):
                 self.detail.render()
 
 
 def main() -> None:
     application = QApplication(sys.argv)
-    application.setStyleSheet(APPLICATION_STYLE)
     database_path = Path("data") / "gosimine.sqlite3"
     initialize_database(database_path, Path("seed") / "miners")
     database = Database(database_path)
+    apply_application_style(database)
     window = MainWindow(database)
     window.show()
     exit_code = application.exec()

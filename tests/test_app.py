@@ -22,6 +22,9 @@ from gosimine.app import (
     MetricExplanationDialog,
     MinerDashboard,
     SettingsDialog,
+    application_style,
+    apply_application_style,
+    equivalent_metal_label,
 )
 from gosimine.database import Database
 from gosimine.seed import initialize_database
@@ -29,6 +32,11 @@ from gosimine.seed import initialize_database
 
 def select_seeded_vzla(database: Database):
     return database.select_catalog_miner("VZLA")
+
+
+def test_equivalent_metal_label_matches_the_primary_commodity() -> None:
+    assert equivalent_metal_label("Gold") == "AuEq"
+    assert equivalent_metal_label("Silver") == "AgEq"
 
 
 def test_main_window_selects_a_catalog_miner(tmp_path: Path, monkeypatch) -> None:
@@ -95,6 +103,24 @@ def test_main_window_restores_its_previous_size(tmp_path: Path) -> None:
     assert restored_window.width() == 1500
     assert restored_window.height() == 950
     restored_window.close()
+    database.close()
+
+
+def test_text_size_setting_persists_and_applies_to_the_application(tmp_path: Path) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    application = QApplication.instance() or QApplication([])
+    dialog = SettingsDialog(database)
+    text_size = dialog.findChild(QComboBox, "text_size")
+
+    assert text_size is not None
+    assert text_size.currentText() == "Default"
+    text_size.setCurrentText("Large")
+    dialog.accept()
+    apply_application_style(database)
+
+    assert database.get_current_application_setting("text_size").value == "Large"
+    assert application.styleSheet() == application_style("Large")
+    dialog.close()
     database.close()
 
 
