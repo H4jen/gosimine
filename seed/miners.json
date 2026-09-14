@@ -59,6 +59,20 @@
         "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/"
       },
       {
+        "name": "measured_indicated_resource_equivalent_ounces",
+        "value": 222400000,
+        "unit": "AgEq oz",
+        "as_of_date": "2024-09-09",
+        "source": "https://vizslasilvercorp.com/vizsla-silver-announces-43-increase-in-measured-and-indicated-mineral-resources-at-panuco-including-46-moz-grading-640-g-t-ageq-in-first-measured-resource-estimate/"
+      },
+      {
+        "name": "inferred_resource_equivalent_ounces",
+        "value": 138700000,
+        "unit": "AgEq oz",
+        "as_of_date": "2024-09-09",
+        "source": "https://vizslasilvercorp.com/vizsla-silver-announces-43-increase-in-measured-and-indicated-mineral-resources-at-panuco-including-46-moz-grading-640-g-t-ageq-in-first-measured-resource-estimate/"
+      },
+      {
         "name": "total_resource_equivalent_ounces",
         "value": 361100000,
         "unit": "AgEq oz",

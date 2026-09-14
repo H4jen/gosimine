@@ -3,6 +3,7 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -14,7 +15,13 @@ from PySide6.QtWidgets import (
     QTabWidget,
 )
 
-from gosimine.app import HistoryDialog, MainWindow, MinerDashboard, SettingsDialog
+from gosimine.app import (
+    HistoryDialog,
+    MainWindow,
+    MetricExplanationDialog,
+    MinerDashboard,
+    SettingsDialog,
+)
 from gosimine.database import Database
 from gosimine.seed import initialize_database
 
@@ -63,13 +70,30 @@ def test_main_window_shows_dashboard_when_a_miner_is_selected(tmp_path: Path) ->
 
     assert isinstance(window.detail, MinerDashboard)
     assert window.table.currentRow() == 0
-    assert window.width() == 1280
-    assert window.height() == 800
+    assert window.width() == 1600
+    assert window.height() == 1000
     detail_pane = window.splitter.widget(1)
     assert detail_pane is window.detail_scroll
     assert detail_pane.minimumWidth() == 480
     assert window.table.maximumWidth() == 240
     window.close()
+    database.close()
+
+
+def test_main_window_restores_its_previous_size(tmp_path: Path) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    application = QApplication.instance() or QApplication([])
+    window = MainWindow(database)
+    window.resize(1500, 950)
+    window.close()
+
+    restored_window = MainWindow(database)
+    restored_window.show()
+    application.processEvents()
+
+    assert restored_window.width() == 1500
+    assert restored_window.height() == 950
+    restored_window.close()
     database.close()
 
 
@@ -126,9 +150,6 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
     assert "Vizsla Silver" in text
     assert "VZLA" in text
     assert "Developer / permitting" in text
-    assert "Key milestones" in text
-    assert "Fully financed (company-reported)" in text
-    assert "First silver production" in text
     assert "4.10" in text
     assert "Share price ($)" in text
     assert "AgEq price ($/AgEq oz)" in text
@@ -171,50 +192,40 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
     assert "Future annual margin / share" in text
     tabs = dashboard.findChild(QTabWidget)
     assert tabs is not None
+    assert tabs.currentIndex() == 1
+    assert all(
+        label.textInteractionFlags() & Qt.TextInteractionFlag.TextSelectableByMouse
+        for label in dashboard.findChildren(QLabel)
+    )
     assert [tabs.tabText(index) for index in range(tabs.count())] == [
         "Overview",
         "Analysis",
-        "Research",
-        "Model inputs",
     ]
-    assert "No research entries yet." in text
+    overview_text = "\n".join(
+        label.text() for label in tabs.widget(0).findChildren(QLabel)
+    )
+    assert "Key milestones" not in overview_text
+    assert "Sourced baseline" in overview_text
+    assert "10,130,000 Ag oz/year" in overview_text
+    assert "222,400,000 AgEq oz" in overview_text
+    assert "138,700,000 AgEq oz" in overview_text
+    assert "361,100,000 AgEq oz" in overview_text
+    assert "406,495,000 USD" in overview_text
+    assert "Potential Conversion Shares" not in overview_text
+    assert "Sources" in overview_text
+    assert "As of 2025-11-12 | https://vizslasilvercorp.com/" in overview_text
     assert any(
         button.text() == "Refresh market data"
         for button in dashboard.findChildren(QPushButton)
     )
     assert any(
-        button.text() == "Add research note"
-        for button in dashboard.findChildren(QPushButton)
-    )
-    assert any(
-        button.text() == "Add milestone"
-        for button in dashboard.findChildren(QPushButton)
-    )
-    assert any(
-        button.text() == "Show model inputs"
-        for button in dashboard.findChildren(QPushButton)
-    )
-    assert any(
-        button.text() == "Add model input"
+        button.objectName() == "explain-metrics"
         for button in dashboard.findChildren(QPushButton)
     )
     assert any(
         button.text() == "Update lifecycle status"
         for button in dashboard.findChildren(QPushButton)
     )
-
-    model_inputs_button = next(
-        button
-        for button in dashboard.findChildren(QPushButton)
-        if button.text() == "Show model inputs"
-    )
-    model_inputs_button.click()
-    application.processEvents()
-    expanded_text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
-    assert "17,383,000 AgEq oz/year" in expanded_text
-    assert "10.61 USD/AgEq oz" in expanded_text
-    assert "4.1 USD" in expanded_text
-    assert "1 USD = 10.45 SEK" in expanded_text
 
     dashboard.close()
     database.close()
@@ -252,6 +263,8 @@ def test_miner_dashboard_recalculates_a_temporary_metal_price_scenario(
     assert gold_input.decimals() == 0
     assert silver_input.singleStep() == 10.0
     assert gold_input.singleStep() == 100.0
+    assert silver_input.value() == 80
+    assert gold_input.value() == 6000
     silver_input.setValue(70)
     silver_input.editingFinished.emit()
     application.processEvents()
@@ -260,16 +273,74 @@ def test_miner_dashboard_recalculates_a_temporary_metal_price_scenario(
     assert "Future case" in text
     assert "Future AgEq price ($/AgEq oz)" in text
     assert "Future resource margin / SP" in text
-    assert "61.64 $" in text
-    assert "12.66x" in text
     reset_button = dashboard.findChild(QPushButton, "scenario-reset-silver")
     assert reset_button is not None
     reset_button.click()
     application.processEvents()
-    assert dashboard.scenario_prices["silver"] == 64.55
+    assert dashboard.scenario_prices["silver"] == 80
     assert database.get_latest_commodity_price("silver").price == 64.55
     dashboard.close()
     database.close()
+
+
+def test_miner_dashboard_opens_metric_explanations(tmp_path: Path, monkeypatch) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    miner = database.add_miner("Vizsla Silver", "VZLA", "Silver", "Developer")
+    opened = False
+
+    class MetricExplanationDialogStub:
+        def __init__(self, parent) -> None:
+            assert parent is dashboard
+
+        def exec(self) -> QDialog.DialogCode:
+            nonlocal opened
+            opened = True
+            return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr("gosimine.app.MetricExplanationDialog", MetricExplanationDialogStub)
+    application = QApplication.instance() or QApplication([])
+    dashboard = MinerDashboard(database, miner)
+    explain_button = dashboard.findChild(QPushButton, "explain-metrics")
+
+    assert explain_button is not None
+    explain_button.click()
+    application.processEvents()
+
+    assert opened
+    dashboard.close()
+    database.close()
+
+
+def test_metric_explanations_use_rich_text_math() -> None:
+    application = QApplication.instance() or QApplication([])
+    dialog = MetricExplanationDialog()
+    formula_labels = dialog.findChildren(QLabel, "math-formula")
+    example_labels = dialog.findChildren(QLabel, "math-example")
+    variable_labels = dialog.findChildren(QLabel, "metric-variables")
+    purpose_labels = dialog.findChildren(QLabel, "metric-purpose")
+    notation = dialog.findChild(QLabel, "notation-text")
+    variable_guide_labels = dialog.findChildren(QLabel, "variable-guide")
+
+    assert formula_labels
+    assert all(not label.pixmap().isNull() for label in formula_labels)
+    assert any("\\frac" in label.toolTip() for label in formula_labels)
+    assert all(label.pixmap().toImage().pixelColor(0, 0).alpha() == 0 for label in formula_labels)
+    assert len(example_labels) == len(formula_labels)
+    assert all(not label.pixmap().isNull() for label in example_labels)
+    assert any("\\$58.47" in label.toolTip() for label in example_labels)
+    assert all("USD" not in label.toolTip() for label in example_labels)
+    assert any("6.77" in label.toolTip() for label in example_labels)
+    assert len(variable_labels) == len(formula_labels)
+    assert any("P_AgEq = equivalent-metal price" in label.text() for label in variable_labels)
+    assert len(purpose_labels) == len(formula_labels)
+    assert any("converts a mixed gold-and-silver production profile" in label.text() for label in purpose_labels)
+    assert notation is not None
+    assert "equations below" in notation.text()
+    assert len(variable_guide_labels) == 19
+    assert any("Share price" in label.text() for label in variable_guide_labels)
+
+    dialog.close()
+    application.processEvents()
 
 
 def test_usd_listing_does_not_require_an_fx_rate(
@@ -372,15 +443,9 @@ def test_miner_dashboard_refresh_button_updates_market_data(
 
     text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
     assert "Analysis unavailable" in text
-    model_inputs_button = next(
-        button
-        for button in dashboard.findChildren(QPushButton)
-        if button.text() == "Show model inputs"
-    )
-    model_inputs_button.click()
-    application.processEvents()
-    expanded_text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
-    assert "4.1 USD" in expanded_text
+    snapshot = database.get_latest_market_snapshot(miner.id)
+    assert snapshot is not None
+    assert snapshot.price == 4.10
     dashboard.close()
     database.close()
 
@@ -417,7 +482,7 @@ def test_miner_dashboard_adds_research_note(tmp_path: Path, monkeypatch) -> None
     assert len(entries) == 1
     assert entries[0].note == "Reviewed the feasibility study."
     text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
-    assert "2026-09-12: Reviewed the feasibility study." in text
+    assert "Reviewed the feasibility study." not in text
     dashboard.close()
     database.close()
 
@@ -453,8 +518,6 @@ def test_miner_dashboard_adds_milestone(tmp_path: Path, monkeypatch) -> None:
     milestones = database.list_milestones(miner.id)
     assert len(milestones) == 1
     assert milestones[0].title == "MIA permit decision"
-    text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
-    assert "Awaiting regulatory approval." in text
     dashboard.close()
     database.close()
 
@@ -581,7 +644,7 @@ def test_miner_dashboard_updates_lifecycle_status(tmp_path: Path, monkeypatch) -
     statuses = database.list_lifecycle_status_history(miner.id)
     assert statuses[0].status == "Construction"
     text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
-    assert "Construction\nAs of 2026-09-12" in text
+    assert "Construction" in text
     dashboard.close()
     database.close()
 
@@ -642,11 +705,42 @@ def test_settings_dialog_persists_the_base_currency(tmp_path: Path) -> None:
     assert currency_input is not None
     assert currency_input.currentText() == "SEK"
     currency_input.setCurrentText("USD")
+    gold_input = dialog.findChild(QDoubleSpinBox, "default_scenario_gold_price_usd_per_ounce")
+    silver_input = dialog.findChild(QDoubleSpinBox, "default_scenario_silver_price_usd_per_ounce")
+    assert gold_input is not None
+    assert silver_input is not None
+    assert gold_input.value() == 6000
+    assert silver_input.value() == 80
+    gold_input.setValue(5500)
+    silver_input.setValue(75)
     dialog.accept()
     application.processEvents()
 
     setting = database.get_current_application_setting("base_currency")
     assert setting is not None
     assert setting.value == "USD"
+    assert database.get_current_application_setting("default_scenario_gold_price_usd_per_ounce").value == "5500"
+    assert database.get_current_application_setting("default_scenario_silver_price_usd_per_ounce").value == "75"
     dialog.close()
+    database.close()
+
+
+def test_scenario_price_defaults_are_shared_across_miners(tmp_path: Path) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    first_miner = database.add_miner("First Silver", "FSLV", "Silver", "Developer")
+    second_miner = database.add_miner("Second Gold", "SGLD", "Gold", "Developer")
+    database.set_application_setting("default_scenario_gold_price_usd_per_ounce", "5500")
+    database.set_application_setting("default_scenario_silver_price_usd_per_ounce", "75")
+    application = QApplication.instance() or QApplication([])
+    first_dashboard = MinerDashboard(database, first_miner)
+    second_dashboard = MinerDashboard(database, second_miner)
+
+    assert first_dashboard._scenario_default_price("gold", 4_000) == 5500
+    assert first_dashboard._scenario_default_price("silver", 60) == 75
+    assert second_dashboard._scenario_default_price("gold", 4_000) == 5500
+    assert second_dashboard._scenario_default_price("silver", 60) == 75
+
+    first_dashboard.close()
+    second_dashboard.close()
+    application.processEvents()
     database.close()

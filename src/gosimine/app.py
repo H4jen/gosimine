@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QColor, QPalette
+from matplotlib import mathtext
+from matplotlib.font_manager import FontProperties
+from PySide6.QtCore import QDate, QTimer, Qt
+from PySide6.QtGui import QColor, QImage, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QDateEdit,
@@ -38,11 +41,18 @@ from gosimine.database import Database, Miner
 from gosimine.market_data import refresh_market_data
 from gosimine.seed import initialize_database
 from gosimine.analysis import AnalysisInputs, calculate_analysis
-from gosimine.settings import APPLICATION_SETTINGS, BASE_CURRENCY
+from gosimine.settings import (
+    APPLICATION_SETTINGS,
+    BASE_CURRENCY,
+    DEFAULT_SCENARIO_GOLD_PRICE,
+    DEFAULT_SCENARIO_SILVER_PRICE,
+)
 
 
 PARAMETER_UNITS = {
     "annual_production_ounces": "AgEq oz/year",
+    "measured_indicated_resource_equivalent_ounces": "AgEq oz",
+    "inferred_resource_equivalent_ounces": "AgEq oz",
     "total_resource_equivalent_ounces": "AgEq oz",
     "aisc_per_ounce": "USD/AgEq oz",
     "mine_life_years": "years",
@@ -78,6 +88,119 @@ METRIC_EXPLANATIONS = {
     "Future lifetime margin / SP": "Scenario lifetime operating-margin proxy per share divided by current share price.",
     "Future resource margin / SP": "Scenario total resource equivalent-metal ounces per share multiplied by scenario margin per equivalent-metal ounce, divided by share price. It is a speculative resource screening ratio, not NPV or expected profit.",
 }
+
+def render_math_formula(formula: str) -> QPixmap:
+    parsed = mathtext.MathTextParser("agg").parse(
+        formula,
+        dpi=180,
+        prop=FontProperties(size=14, math_fontfamily="cm"),
+    )
+    width, height = parsed.image.shape[1], parsed.image.shape[0]
+    alpha = parsed.image.tobytes()
+    pixel_count = width * height
+    pixels = bytearray(pixel_count * 4)
+    pixels[0::4] = bytes([24]) * pixel_count
+    pixels[1::4] = bytes([49]) * pixel_count
+    pixels[2::4] = bytes([40]) * pixel_count
+    pixels[3::4] = alpha
+    image = QImage(bytes(pixels), width, height, width * 4, QImage.Format.Format_RGBA8888)
+    return QPixmap.fromImage(image.copy())
+
+
+METRIC_GUIDES = {
+    "AgEq price": (r"$P_{AgEq}=\frac{V}{Q}$", r"$P_{AgEq}=\frac{1{,}016}{17.383}=\$58.47/\mathrm{AgEq\ oz}$"),
+    "Margin per AgEq oz": (r"$M_{AgEq}=P_{AgEq}-C$", r"$M_{AgEq}=\$58.47-\$10.61=\$47.86/\mathrm{AgEq\ oz}$"),
+    "AISC": (r"$C=\mathrm{AISC}$", r"$C=\$10.61/\mathrm{AgEq\ oz}$"),
+    "Annual AgEq oz / share": (r"$q=\frac{Q}{S}$", r"$q=\frac{17.383}{355.057}=0.0490\ \mathrm{AgEq\ oz/share}$"),
+    "Lifetime AgEq oz / share": (r"$q_L=\frac{Q\times L}{S}$", r"$q_L=\frac{17.383\times9.4}{355.057}=0.4602\ \mathrm{AgEq\ oz/share}$"),
+    "Annual margin / share": (r"$m=M_{AgEq}\times q$", r"$m=\$47.86\times0.0490=\$2.34/\mathrm{share}$"),
+    "Lifetime margin / share": (r"$m_L=m\times L$", r"$m_L=\$2.34\times9.4=\$22.02/\mathrm{share}$"),
+    "Lifetime margin / SP": (r"$\frac{m_L}{P}$", r"$\frac{22.02}{3.97}=5.55\times$"),
+    "Resource AgEq oz / share": (r"$r=\frac{R}{S}$", r"$r=\frac{361.1}{355.057}=1.0170\ \mathrm{AgEq\ oz/share}$"),
+    "Resource margin / SP": (r"$\frac{r\times M_{AgEq}}{P}$", r"$\frac{1.0170\times47.86}{3.97}=12.26\times$"),
+    "After-tax NPV / share": (r"$\frac{N}{S}$", r"$\frac{\$1{,}802}{355.057}=\$5.08/\mathrm{share}$"),
+    "NPV / SP": (r"$\frac{N/S}{P}$", r"$\frac{5.08}{3.97}=1.28\times$"),
+    "NAV / share": (r"$\frac{N+K-D}{S}$", r"$\frac{\$1{,}802+\$406-\$240}{355.057}=\$5.54/\mathrm{share}$"),
+    "NAV / SP": (r"$\frac{\mathrm{NAV}/S}{P}$", r"$\frac{5.54}{3.97}=1.40\times$"),
+    "Risked NAV / share": (r"$\frac{\mathrm{NAV}}{S}\times f$", r"$\$5.54\times0.70=\$3.88/\mathrm{share}$"),
+    "Risked NAV / SP": (r"$\frac{\mathrm{Risked\ NAV}/S}{P}$", r"$\frac{3.88}{3.97}=0.98\times$"),
+    "Future AgEq price": (r"$P_{AgEq}^{\prime}=\frac{V^{\prime}}{Q}$", r"$P_{AgEq}^{\prime}=\frac{\$1{,}200}{17.383}=\$69.03/\mathrm{AgEq\ oz}$"),
+    "Future annual margin / share": (r"$m^{\prime}=(P_{AgEq}^{\prime}-C)\times q$", r"$m^{\prime}=(\$69.03-\$10.61)\times0.0490=\$2.86/\mathrm{share}$"),
+    "Future lifetime margin / share": (r"$m_L^{\prime}=m^{\prime}\times L$", r"$m_L^{\prime}=\$2.86\times9.4=\$26.88/\mathrm{share}$"),
+    "Future lifetime margin / SP": (r"$\frac{m_L^{\prime}}{P}$", r"$\frac{26.88}{3.97}=6.77\times$"),
+    "Future resource margin / SP": (r"$\frac{r\times(P_{AgEq}^{\prime}-C)}{P}$", r"$\frac{1.0170\times(69.03-10.61)}{3.97}=14.96\times$"),
+}
+
+METRIC_PURPOSES = {
+    "AgEq price": "Why it matters: It converts a mixed gold-and-silver production profile into one comparable revenue price per equivalent ounce.",
+    "Margin per AgEq oz": "Why it matters: It estimates the operating room between current metal prices and reported sustaining cost before corporate costs, tax, and financing.",
+    "AISC": "Why it matters: It is the cost baseline used to judge sensitivity to metal prices and operating profitability.",
+    "Annual AgEq oz / share": "Why it matters: It shows how much annual equivalent-metal production supports each existing share.",
+    "Lifetime AgEq oz / share": "Why it matters: It connects the mine plan's total operating output to the current share count.",
+    "Annual margin / share": "Why it matters: It turns the annual operating-margin proxy into a per-share figure that can be compared across companies.",
+    "Lifetime margin / share": "Why it matters: It summarizes undiscounted mine-plan operating margin per share over the stated mine life.",
+    "Lifetime margin / SP": "Why it matters: It compares the undiscounted lifetime operating-margin proxy with the price paid for one share.",
+    "Resource AgEq oz / share": "Why it matters: It screens the in-situ resource endowment backing each share, separate from the reserve-backed mine plan.",
+    "Resource margin / SP": "Why it matters: It is a high-level measure of how much resource-scale operating-margin potential is implied by the current share price.",
+    "After-tax NPV / share": "Why it matters: It puts the study's after-tax project value on a per-share basis before balance-sheet adjustments.",
+    "NPV / SP": "Why it matters: It compares feasibility-study project value per share with the current market price; above 1x indicates NPV exceeds price.",
+    "NAV / share": "Why it matters: It adds cash and subtracts debt from project NPV to estimate value attributable to each basic share.",
+    "NAV / SP": "Why it matters: It compares balance-sheet-adjusted NAV per share with the market price; above 1x indicates NAV exceeds price.",
+    "Risked NAV / share": "Why it matters: It applies a user-selected development risk factor to NAV, recognizing execution and permitting uncertainty.",
+    "Risked NAV / SP": "Why it matters: It compares risk-adjusted NAV per share with the market price; above 1x indicates risked NAV exceeds price.",
+    "Future AgEq price": "Why it matters: It shows how the blended equivalent-metal price changes under your own gold and silver price scenario.",
+    "Future annual margin / share": "Why it matters: It translates the scenario metal-price view into a per-share annual operating-margin proxy.",
+    "Future lifetime margin / share": "Why it matters: It extends the scenario annual margin across the mine life to show its undiscounted per-share effect.",
+    "Future lifetime margin / SP": "Why it matters: It compares the scenario lifetime margin proxy with today's share price.",
+    "Future resource margin / SP": "Why it matters: It tests how a metal-price scenario changes the speculative resource-scale margin relative to the share price.",
+}
+
+METRIC_VARIABLES = {
+    "Share price": "P = share price.",
+    "AgEq price": "P_AgEq = equivalent-metal price; V = annual payable-metal value; Q = annual AgEq production.",
+    "Margin per AgEq oz": "M_AgEq = margin per AgEq oz; P_AgEq = equivalent-metal price; C = AISC.",
+    "AISC": "C = all-in sustaining cost per AgEq oz.",
+    "Annual AgEq oz / share": "q = annual AgEq oz per share; Q = annual AgEq production; S = basic shares.",
+    "Lifetime AgEq oz / share": "q_L = lifetime AgEq oz per share; Q = annual AgEq production; L = mine life; S = basic shares.",
+    "Annual margin / share": "m = annual margin per share; M_AgEq = margin per AgEq oz; q = annual AgEq oz per share.",
+    "Lifetime margin / share": "m_L = lifetime margin per share; m = annual margin per share; L = mine life.",
+    "Lifetime margin / SP": "m_L = lifetime margin per share; P = share price.",
+    "Resource AgEq oz / share": "r = resource AgEq oz per share; R = total AgEq resources; S = basic shares.",
+    "Resource margin / SP": "r = resource AgEq oz per share; M_AgEq = margin per AgEq oz; P = share price.",
+    "After-tax NPV / share": "N = after-tax NPV; S = basic shares.",
+    "NPV / SP": "N = after-tax NPV; S = basic shares; P = share price.",
+    "NAV / share": "N = after-tax NPV; K = cash; D = debt; S = basic shares.",
+    "NAV / SP": "NAV = net asset value; S = basic shares; P = share price.",
+    "Risked NAV / share": "NAV = net asset value; S = basic shares; f = development risk factor.",
+    "Risked NAV / SP": "Risked NAV = NAV after applying the risk factor; S = basic shares; P = share price.",
+    "Future AgEq price": "P'_AgEq = scenario equivalent-metal price; V' = scenario payable-metal value; Q = annual AgEq production.",
+    "Future annual margin / share": "m' = scenario annual margin per share; P'_AgEq = scenario equivalent-metal price; C = AISC; q = annual AgEq oz per share.",
+    "Future lifetime margin / share": "m'_L = scenario lifetime margin per share; m' = scenario annual margin per share; L = mine life.",
+    "Future lifetime margin / SP": "m'_L = scenario lifetime margin per share; P = share price.",
+    "Future resource margin / SP": "r = resource AgEq oz per share; P'_AgEq = scenario equivalent-metal price; C = AISC; P = share price.",
+}
+
+VARIABLE_GUIDES = (
+    ("P", "Share price", "The latest quoted price for one share of the selected listing, in its trading currency. Example: P = $3.97/share."),
+    ("V", "Annual payable-metal value", "The value of one year's payable metal output at the current metal prices. Example: V = $1,016M/year."),
+    ("V'", "Scenario payable-metal value", "The same annual payable-metal value recalculated using the scenario metal prices. Example: V' changes when a gold or silver scenario is edited."),
+    ("Q", "Annual AgEq production", "One year's payable production expressed as silver-equivalent ounces. Example: Q = 17.383M AgEq oz/year."),
+    ("S", "Basic shares", "Current basic shares outstanding. Per-share values use S before optional dilution adjustments. Example: S = 355.057M shares."),
+    ("L", "Mine life", "The mine-plan operating period in years. Example: L = 9.4 years."),
+    ("C", "AISC", "All-in sustaining cost per equivalent-metal ounce, subtracted from the AgEq price to form the operating-margin proxy. Example: C = $10.61/AgEq oz."),
+    ("R", "Total AgEq resources", "Combined measured, indicated, and inferred in-situ silver-equivalent resources. This is not a reserve or mine plan. Example: R = 361.1M AgEq oz."),
+    ("N", "After-tax NPV", "Company-reported after-tax project NPV from the feasibility study. Example: N = $1.802B."),
+    ("K", "Cash", "Reported cash and cash equivalents. Example: K = $406M."),
+    ("D", "Debt", "Reported total debt. Example: D = $240M."),
+    ("f", "Development risk factor", "The investor-entered probability factor applied to NAV. Example: f = 0.70 means 70%."),
+    ("P_AgEq", "AgEq price", "Payable metal value divided by annual AgEq production. Example: P_AgEq = $58.47/AgEq oz."),
+    ("M_AgEq", "Margin per AgEq oz", "AgEq price less AISC; it is an operating-margin proxy, not net income. Example: M_AgEq = $47.86/AgEq oz."),
+    ("q and q_L", "AgEq ounces per share", "q is annual AgEq oz/share and q_L is lifetime AgEq oz/share. Example: q = 0.0490 and q_L = 0.4602 AgEq oz/share."),
+    ("m and m_L", "Margin per share", "m is annual operating margin per share and m_L is lifetime undiscounted margin per share. Example: m = $2.34/share and m_L = $22.02/share."),
+    ("r", "Resource AgEq oz per share", "Total AgEq resources divided by basic shares; it is a resource-screening measure. Example: r = 1.0170 AgEq oz/share."),
+    ("NAV", "Net asset value", "After-tax NPV plus cash minus debt. Example: NAV = $1.968B, or $5.54/share before risk adjustment."),
+    ("Primes (')", "Scenario values", "A prime marks a value recalculated with the scenario metal prices. Example: P'_AgEq is the scenario AgEq price and m' is scenario annual margin per share."),
+)
 
 LIFECYCLE_STATUSES = (
     "Explorer",
@@ -120,6 +243,12 @@ QLabel#status-value {
     background: #e2eee6; border: 1px solid #c4d7ca; border-radius: 4px;
     color: #1f583f; font-weight: 600; padding: 8px;
 }
+QLabel#notation-heading { color: #216b4d; font-size: 15px; font-weight: 700; }
+QLabel#notation-text { color: #1c2822; font-size: 13px; }
+QLabel#metric-guide-title { color: #1c2822; font-size: 14px; font-weight: 600; }
+QLabel#math-formula, QLabel#math-example {
+    background: transparent; border: 0; color: #183128; padding: 4px 0;
+}
 QLabel#metric-label { color: #5a6b61; font-size: 11px; }
 QLabel#metric-value { color: #183128; font-size: 20px; font-weight: 700; }
 QLabel#metric-marker { color: #5a6b61; font-size: 11px; font-weight: 400; }
@@ -151,6 +280,11 @@ def configure_dialog(dialog: QDialog) -> None:
     dialog.setPalette(palette)
     dialog.setAutoFillBackground(True)
     dialog.setWindowModality(Qt.WindowModality.WindowModal)
+    parent = dialog.parentWidget()
+    if parent is not None:
+        dialog.finished.connect(
+            lambda _: QTimer.singleShot(0, lambda: (parent.raise_(), parent.activateWindow(), parent.setFocus()))
+        )
 
 
 class AddMinerDialog(QDialog):
@@ -594,17 +728,27 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         configure_dialog(self)
         self.database = database
-        self.inputs: dict[str, QComboBox] = {}
+        self.inputs: dict[str, QComboBox | QDoubleSpinBox] = {}
         self.setWindowTitle("Settings")
 
         form = QFormLayout(self)
         for definition in APPLICATION_SETTINGS:
             value = database.get_current_application_setting(definition.key)
-            setting_input = QComboBox()
-            setting_input.addItems(definition.choices)
-            setting_input.setCurrentText(
-                value.value if value is not None else definition.default_value
-            )
+            if definition.choices:
+                setting_input = QComboBox()
+                setting_input.addItems(definition.choices)
+                setting_input.setCurrentText(
+                    value.value if value is not None else definition.default_value
+                )
+            else:
+                setting_input = QDoubleSpinBox()
+                setting_input.setRange(definition.minimum or 0, definition.maximum or 1_000_000)
+                setting_input.setDecimals(0)
+                setting_input.setSingleStep(definition.step or 1)
+                setting_input.setPrefix("$")
+                setting_input.setSuffix("/oz")
+                setting_input.setValue(float(value.value if value is not None else definition.default_value))
+            setting_input.setObjectName(definition.key)
             self.inputs[definition.key] = setting_input
             form.addRow(definition.label, setting_input)
 
@@ -617,11 +761,91 @@ class SettingsDialog(QDialog):
 
     def accept(self) -> None:
         for definition in APPLICATION_SETTINGS:
-            value = self.inputs[definition.key].currentText()
+            setting_input = self.inputs[definition.key]
+            value = (
+                setting_input.currentText()
+                if isinstance(setting_input, QComboBox)
+                else f"{setting_input.value():.0f}"
+            )
             current = self.database.get_current_application_setting(definition.key)
             if current is None or current.value != value:
                 self.database.set_application_setting(definition.key, value)
         super().accept()
+
+
+class MetricExplanationDialog(QDialog):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        configure_dialog(self)
+        self.setWindowTitle("Metric explanations")
+        self.resize(840, 760)
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(28, 24, 28, 24)
+        content_layout.setSpacing(14)
+
+        notation_heading = QLabel("Variables")
+        notation_heading.setObjectName("notation-heading")
+        content_layout.addWidget(notation_heading)
+        introduction = QLabel(
+            "The equations below use the following symbols. Values are illustrative "
+            "VZLA-style examples and should be read with the sourcing notes in Analysis."
+        )
+        introduction.setObjectName("notation-text")
+        introduction.setWordWrap(True)
+        content_layout.addWidget(introduction)
+        for symbol, name, explanation in VARIABLE_GUIDES:
+            variable_label = QLabel(f"<b>{symbol} - {name}</b><br/>{explanation}")
+            variable_label.setObjectName("variable-guide")
+            variable_label.setWordWrap(True)
+            variable_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            content_layout.addWidget(variable_label)
+
+        for index, (metric, (formula, example)) in enumerate(METRIC_GUIDES.items(), 1):
+            guide = QWidget()
+            guide_layout = QVBoxLayout(guide)
+            guide_layout.setContentsMargins(10, 6, 10, 6)
+            guide_layout.setSpacing(8)
+
+            heading = QLabel(f"{index}. {metric}")
+            heading.setObjectName("metric-guide-title")
+            guide_layout.addWidget(heading)
+            purpose_label = QLabel(METRIC_PURPOSES[metric])
+            purpose_label.setObjectName("metric-purpose")
+            purpose_label.setWordWrap(True)
+            purpose_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            guide_layout.addWidget(purpose_label)
+
+            formula_label = QLabel()
+            formula_label.setObjectName("math-formula")
+            formula_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            formula_label.setPixmap(render_math_formula(formula))
+            formula_label.setToolTip(formula)
+            guide_layout.addWidget(formula_label)
+
+            example_label = QLabel()
+            example_label.setObjectName("math-example")
+            example_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            example_label.setPixmap(render_math_formula(example))
+            example_label.setToolTip(example)
+            guide_layout.addWidget(example_label)
+            variable_label = QLabel(f"Where {METRIC_VARIABLES[metric]}")
+            variable_label.setObjectName("metric-variables")
+            variable_label.setWordWrap(True)
+            variable_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            guide_layout.addWidget(variable_label)
+            content_layout.addWidget(guide)
+        content_layout.addStretch()
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(content)
+        close_button = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        close_button.rejected.connect(self.reject)
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll_area)
+        layout.addWidget(close_button)
 
 
 class MinerDashboard(QWidget):
@@ -633,7 +857,7 @@ class MinerDashboard(QWidget):
         self.scenario_prices: dict[str, float] = {}
         self.development_risk_factor = 0.70
         self.additional_dilution_shares = 0.0
-        self.active_tab = 0
+        self.active_tab = 1
         self.root_layout = QVBoxLayout(self)
         self.root_layout.setContentsMargins(24, 24, 24, 24)
         self.layout = self.root_layout
@@ -658,11 +882,6 @@ class MinerDashboard(QWidget):
         refresh_button.setObjectName("primary-action")
         refresh_button.clicked.connect(self.refresh_market_data)
         actions.addWidget(refresh_button)
-        inputs_button = QPushButton(
-            "Hide model inputs" if self.inputs_visible else "Show model inputs"
-        )
-        inputs_button.clicked.connect(self.toggle_model_inputs)
-        actions.addWidget(inputs_button)
         history_button = QPushButton("Review dossier history")
         history_button.clicked.connect(self.review_history)
         actions.addWidget(history_button)
@@ -673,61 +892,68 @@ class MinerDashboard(QWidget):
         self.root_layout.addWidget(tabs, 1)
         overview_tab = QWidget()
         analysis_tab = QWidget()
-        research_tab = QWidget()
-        inputs_tab = QWidget()
         tabs.addTab(overview_tab, "Overview")
         tabs.addTab(analysis_tab, "Analysis")
-        tabs.addTab(research_tab, "Research")
-        tabs.addTab(inputs_tab, "Model inputs")
         overview_layout = QVBoxLayout(overview_tab)
         analysis_layout = QVBoxLayout(analysis_tab)
-        research_layout = QVBoxLayout(research_tab)
-        inputs_layout = QVBoxLayout(inputs_tab)
         for layout in (
             overview_layout,
             analysis_layout,
-            research_layout,
-            inputs_layout,
         ):
             layout.setContentsMargins(16, 16, 16, 16)
             layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.layout = overview_layout
 
+        parameters = self.database.list_current_parameters(self.miner.id)
         statuses = self.database.list_lifecycle_status_history(self.miner.id)
         if statuses:
             status = statuses[0]
             lifecycle_heading = QLabel("Lifecycle status")
             lifecycle_heading.setObjectName("section-heading")
             self.layout.addWidget(lifecycle_heading)
-            status_detail = QLabel(f"{status.status}\nAs of {status.as_of_date} | {status.source}")
+            status_detail = QLabel(status.status)
             status_detail.setObjectName("status-value")
             self.layout.addWidget(status_detail)
             update_status_button = QPushButton("Update lifecycle status")
             update_status_button.clicked.connect(lambda: self.update_lifecycle_status(status.status))
             self.layout.addWidget(update_status_button, alignment=Qt.AlignmentFlag.AlignLeft)
 
-        milestones = self.database.list_milestones(self.miner.id)
-        if milestones:
-            milestones_heading = QLabel("Key milestones")
-            milestones_heading.setObjectName("section-heading")
-            self.layout.addWidget(milestones_heading)
-            for milestone in milestones:
-                detail = QLabel(
-                    f"{milestone.category}: {milestone.title}\n"
-                    f"{milestone.status} | {milestone.target_date}\n"
-                    f"{milestone.detail}\n{milestone.source}"
-                )
-                detail.setWordWrap(True)
-                self.layout.addWidget(detail)
-                update_milestone_button = QPushButton("Record milestone outcome")
-                update_milestone_button.clicked.connect(
-                    lambda _, item=milestone: self.update_milestone(item.category, item.title)
-                )
-                self.layout.addWidget(
-                    update_milestone_button, alignment=Qt.AlignmentFlag.AlignLeft
-                )
+        overview_heading = QLabel("Sourced baseline")
+        overview_heading.setObjectName("section-heading")
+        self.layout.addWidget(overview_heading)
+        overview_form = QFormLayout()
+        overview_parameters = [
+            parameter
+            for parameter in parameters
+            if parameter.parameter != "potential_conversion_shares"
+        ]
+        for parameter in overview_parameters:
+            name = parameter.parameter.replace("_", " ").title()
+            overview_form.addRow(name, QLabel(f"{parameter.value:,.12g} {parameter.unit}"))
+        self.layout.addLayout(overview_form)
 
-        parameters = self.database.list_current_parameters(self.miner.id)
+        sources = []
+        if statuses:
+            sources.append(("Lifecycle status", status.as_of_date, status.source))
+        sources.extend(
+            (parameter.parameter.replace("_", " ").title(), parameter.as_of_date, parameter.source)
+            for parameter in overview_parameters
+        )
+        grouped_sources: dict[tuple[str, str], list[str]] = {}
+        for label, as_of_date, source in sources:
+            grouped_sources.setdefault((as_of_date, source), []).append(label)
+        if grouped_sources:
+            sources_heading = QLabel("Sources")
+            sources_heading.setObjectName("section-heading")
+            self.layout.addWidget(sources_heading)
+            for (as_of_date, source), labels in grouped_sources.items():
+                source_detail = QLabel(
+                    f"{', '.join(labels)}\nAs of {as_of_date} | {source}"
+                )
+                source_detail.setObjectName("analysis-note")
+                source_detail.setWordWrap(True)
+                self.layout.addWidget(source_detail)
+
         market_snapshot = self.database.get_latest_market_snapshot(self.miner.id)
         trading_currency = self.miner.trading_currency
         usd_to_trading_rate = self._usd_to_currency_rate(trading_currency)
@@ -735,6 +961,10 @@ class MinerDashboard(QWidget):
         analysis_heading = QLabel("Current analysis")
         analysis_heading.setObjectName("section-heading")
         self.layout.addWidget(analysis_heading)
+        explain_metrics_button = QPushButton("Explain metrics")
+        explain_metrics_button.setObjectName("explain-metrics")
+        explain_metrics_button.clicked.connect(self.show_metric_explanations)
+        self.layout.addWidget(explain_metrics_button, alignment=Qt.AlignmentFlag.AlignLeft)
         analysis = self._calculate_analysis(parameters, market_snapshot)
         if analysis is None:
             self.layout.addWidget(
@@ -1014,32 +1244,8 @@ class MinerDashboard(QWidget):
                 lifetime_note.setWordWrap(True)
                 self.layout.addWidget(lifetime_note)
 
-        self.layout = inputs_layout
-        self._render_model_inputs(parameters, market_snapshot)
-
-        add_input_button = QPushButton("Add model input")
-        add_input_button.clicked.connect(self.add_model_input)
-        self.layout.addWidget(add_input_button, alignment=Qt.AlignmentFlag.AlignLeft)
-
-        self.layout = research_layout
-        research_heading = QLabel("Research timeline")
-        research_heading.setObjectName("section-heading")
-        self.layout.addWidget(research_heading)
-        add_milestone_button = QPushButton("Add milestone")
-        add_milestone_button.clicked.connect(self.add_milestone)
-        self.layout.addWidget(add_milestone_button, alignment=Qt.AlignmentFlag.AlignLeft)
-        add_note_button = QPushButton("Add research note")
-        add_note_button.clicked.connect(self.add_research_note)
-        self.layout.addWidget(add_note_button, alignment=Qt.AlignmentFlag.AlignLeft)
-        entries = self.database.list_research_entries(self.miner.id)
-        if entries:
-            for entry in entries:
-                detail = QLabel(f"{entry.entry_date}: {entry.note}\n{entry.source}")
-                detail.setWordWrap(True)
-                self.layout.addWidget(detail)
-        else:
-            self.layout.addWidget(QLabel("No research entries yet."))
-        self.layout.addStretch()
+        for label in self.findChildren(QLabel):
+            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         tabs.setCurrentIndex(min(self.active_tab, tabs.count() - 1))
         tabs.currentChanged.connect(self._set_active_tab)
 
@@ -1114,7 +1320,7 @@ class MinerDashboard(QWidget):
         if current_prices is None:
             return
         for metal, price in current_prices.items():
-            self.scenario_prices.setdefault(metal, price)
+            self.scenario_prices.setdefault(metal, self._scenario_default_price(metal, price))
 
         self.layout.addWidget(QLabel("Scenario metal prices"))
         controls = QFormLayout()
@@ -1137,7 +1343,7 @@ class MinerDashboard(QWidget):
             reset_button.setToolTip(f"Restore the latest stored {metal} price")
             reset_button.clicked.connect(
                 lambda _, commodity=metal, price=current_prices[metal]: self.reset_scenario_price(
-                    commodity, price
+                    commodity, self._scenario_default_price(commodity, price)
                 )
             )
             control = QWidget()
@@ -1248,6 +1454,16 @@ class MinerDashboard(QWidget):
 
     def reset_scenario_price(self, commodity: str, price: float) -> None:
         self.set_scenario_price(commodity, price)
+
+    def _scenario_default_price(self, commodity: str, market_price: float) -> float:
+        definition = {
+            "gold": DEFAULT_SCENARIO_GOLD_PRICE,
+            "silver": DEFAULT_SCENARIO_SILVER_PRICE,
+        }.get(commodity)
+        if definition is None:
+            return market_price
+        setting = self.database.get_current_application_setting(definition.key)
+        return float(setting.value if setting is not None else definition.default_value)
 
     def set_development_risk_factor(self, risk_factor: float) -> None:
         self.development_risk_factor = risk_factor
@@ -1518,6 +1734,9 @@ class MinerDashboard(QWidget):
     def review_history(self) -> None:
         HistoryDialog(self.database, self.miner, self).exec()
 
+    def show_metric_explanations(self) -> None:
+        MetricExplanationDialog(self).exec()
+
     def add_milestone(self) -> None:
         dialog = AddMilestoneDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -1526,11 +1745,13 @@ class MinerDashboard(QWidget):
 
 
 class MainWindow(QMainWindow):
+    WINDOW_GEOMETRY_SETTING = "window_geometry"
+
     def __init__(self, database: Database) -> None:
         super().__init__()
         self.database = database
         self.setWindowTitle("Gosimine")
-        self.resize(1280, 800)
+        self._restore_window_geometry()
         self.detail_scroll: QScrollArea | None = None
 
         self.table = QTableWidget(0, 1)
@@ -1578,6 +1799,38 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
         self.refresh_miners()
+
+    def _restore_window_geometry(self) -> None:
+        setting = self.database.get_current_application_setting(self.WINDOW_GEOMETRY_SETTING)
+        if setting is None:
+            self.resize(1600, 1000)
+            return
+        try:
+            geometry = json.loads(setting.value)
+            self.setGeometry(
+                int(geometry["x"]),
+                int(geometry["y"]),
+                int(geometry["width"]),
+                int(geometry["height"]),
+            )
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            self.resize(1600, 1000)
+
+    def closeEvent(self, event) -> None:
+        geometry = self.normalGeometry()
+        self.database.set_application_setting(
+            self.WINDOW_GEOMETRY_SETTING,
+            json.dumps(
+                {
+                    "x": geometry.x(),
+                    "y": geometry.y(),
+                    "width": geometry.width(),
+                    "height": geometry.height(),
+                }
+            ),
+            "Application",
+        )
+        super().closeEvent(event)
 
     def refresh_miners(self) -> None:
         miners = self.database.list_miners()
