@@ -1,0 +1,112 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "1900-01-01",
+    "source": "2026-06-01",
+    "value": "Producer / ramp-up"
+  },
+  "name": "Talisker Resources Ltd.",
+  "parameters": [
+    {
+      "as_of_date": "2026-06-01",
+      "name": "basic_shares_outstanding",
+      "source": "https://www.taliskerresources.com/investors/financial-reports/",
+      "unit": "shares",
+      "value": 207983233.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "annual_production_ounces",
+      "source": "2026-06-01",
+      "unit": "AuEq oz/year",
+      "value": 100000.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "aisc_per_ounce",
+      "source": "2026-06-01",
+      "unit": "USD/AuEq oz",
+      "value": 1600.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "mine_life_years",
+      "source": "2026-06-01",
+      "unit": "years",
+      "value": 12.0
+    },
+    {
+      "as_of_date": "2025-12-31",
+      "name": "measured_indicated_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: annual production 100,000 oz/year; AISC USD 1,600/oz; 12-year mine life; after-tax NPV USD 325M; 5% discount rate; and gold price USD 2,100/oz.",
+      "unit": "AuEq oz",
+      "value": 206300.0
+    },
+    {
+      "as_of_date": "2025-12-31",
+      "name": "inferred_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: annual production 100,000 oz/year; AISC USD 1,600/oz; 12-year mine life; after-tax NPV USD 325M; 5% discount rate; and gold price USD 2,100/oz.",
+      "unit": "AuEq oz",
+      "value": 3151000.0
+    },
+    {
+      "as_of_date": "2025-12-31",
+      "name": "total_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: annual production 100,000 oz/year; AISC USD 1,600/oz; 12-year mine life; after-tax NPV USD 325M; 5% discount rate; and gold price USD 2,100/oz.",
+      "unit": "AuEq oz",
+      "value": 3357300.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "study_discount_rate_percent",
+      "source": "2026-06-01",
+      "unit": "%",
+      "value": 5.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "after_tax_npv_usd",
+      "source": "2026-06-01",
+      "unit": "USD",
+      "value": 325000000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "cash_cad",
+      "source": "https://pw-taliskerresources.tor1.cdn.digitaloceanspaces.com/site/assets/files/1/bralorne_2026_ni-43-101_mre_technical_report_-_jun26-26-compressed.pdf",
+      "unit": "CAD",
+      "value": 49700000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "total_debt_cad",
+      "source": "https://pw-taliskerresources.tor1.cdn.digitaloceanspaces.com/site/assets/files/1/bralorne_2026_ni-43-101_mre_technical_report_-_jun26-26-compressed.pdf",
+      "unit": "CAD",
+      "value": 0.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "annual_payable_gold_ounces",
+      "source": "2026-06-01",
+      "unit": "Au oz/year",
+      "value": 100000.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "study_metal_price_gold_usd_per_ounce",
+      "source": "2026-06-01",
+      "unit": "USD/oz",
+      "value": 52551764.0
+    },
+    {
+      "as_of_date": "1900-01-01",
+      "name": "study_metal_price_silver_usd_per_ounce",
+      "source": "2026-06-01",
+      "unit": "USD/oz",
+      "value": 2100.0
+    }
+  ],
+  "primary_commodity": "Gold",
+  "stage": "Producer / ramp-up",
+  "ticker": "TSK.TO",
+  "trading_currency": "CAD"
+}

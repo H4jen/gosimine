@@ -74,6 +74,20 @@ Common data never overwrites personal data. The dashboard combines both layers w
 
 Saved analysis scenarios are personal miner records. They preserve a name, commodity-price overrides, development-risk factor, and creation time. They do not alter sourced facts or market snapshots.
 
+### Project Models
+
+A project model is a dated personal or explicitly temporary analytical decomposition of one miner
+into attributable projects. Each component records its name, ownership basis, payable-metal
+volumes, annual equivalent-metal production, AISC, mine life, and optional compatible resource
+and NPV values. The model stores its complete component set and source together as an append-only
+snapshot.
+
+The analysis layer may consolidate a project model by summing annual payable volumes and annual
+equivalent ounces; using lifetime-production-weighted AISC and mine life; and summing resources or
+NPV only when every included project supplies a compatible value. Corporate cash, debt, shares,
+and dilution remain separate miner-level inputs. A consolidated result must retain the project
+model's source and never be presented as a company-reported value unless the issuer reported it.
+
 ### Application Settings
 
 Application settings are personal, global preferences rather than miner data. A setting change appends a snapshot with its timestamp and source. The current setting is the newest snapshot for its registered key. The initial `base_currency` display preference defaults to `SEK` when no user snapshot exists; it does not alter a miner's trading currency.
@@ -193,14 +207,19 @@ The first controlled parameter names are:
 
 - `annual_production_ounces`
 - `annual_payable_<metal>_ounces`
+- `annual_payable_<metal>_pounds`
 - `aisc_per_ounce`
 - `mine_life_years`
 - `after_tax_npv_usd`
+- `after_tax_npv_<currency>`
 - `study_metal_price_<metal>_usd_per_ounce`
 - `study_discount_rate_percent`
 - `cash_usd`
+- `cash_<currency>`
 - `total_debt_usd`
+- `total_debt_<currency>`
 - `potential_conversion_shares`
+- `potential_dilution_shares`
 - `basic_shares_outstanding`
 
 The parameter list may grow only through an intentional schema and API decision. Free-form notes belong in research entries rather than arbitrary parameter names.
@@ -249,6 +268,12 @@ class Database:
     def add_analysis_scenario(...) -> AnalysisScenario: ...
     def get_analysis_scenario(self, scenario_id: int) -> AnalysisScenario | None: ...
     def list_analysis_scenarios(self, miner_id: int) -> list[AnalysisScenario]: ...
+
+    # Dated multi-project analysis inputs
+    def add_project_model_snapshot(...) -> ProjectModelSnapshot: ...
+    def get_latest_project_model_snapshot(
+        self, miner_id: int
+    ) -> ProjectModelSnapshot | None: ...
 
     # Dated company milestones and targets
     def add_milestone(...) -> Milestone: ...

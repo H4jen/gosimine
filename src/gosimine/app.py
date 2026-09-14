@@ -11,6 +11,7 @@ from PySide6.QtCore import QDate, QTimer, Qt
 from PySide6.QtGui import QColor, QImage, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QDateEdit,
     QComboBox,
     QDialog,
@@ -37,10 +38,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gosimine.database import Database, Miner
+from gosimine.database import Database, Miner, ParameterSnapshot
 from gosimine.market_data import refresh_market_data
+from gosimine.commodities import COMMODITIES
 from gosimine.seed import initialize_database
-from gosimine.analysis import AnalysisInputs, calculate_analysis
+from gosimine.analysis import (
+    AnalysisInputs,
+    ProjectInputs,
+    calculate_analysis,
+    consolidate_project_inputs,
+)
 from gosimine.settings import (
     APPLICATION_SETTINGS,
     BASE_CURRENCY,
@@ -60,31 +67,33 @@ PARAMETER_UNITS = {
     "cash_usd": "USD",
     "total_debt_usd": "USD",
     "potential_conversion_shares": "shares",
+    "potential_dilution_shares": "shares",
     "basic_shares_outstanding": "shares",
     "study_discount_rate_percent": "%",
 }
 
 METRIC_EXPLANATIONS = {
     "Share price": "Latest market price for this listing. Source: the latest stored market snapshot.",
-    "Risked NAV / share": "NAV per basic share multiplied by the investor-entered development risk factor.",
-    "Risked NAV / SP": "Risked NAV per basic share divided by the current share price. Above 1.0x means the risked screening value exceeds the share price.",
-    "NAV / share": "After-tax project NPV plus cash minus total debt, divided by basic shares outstanding.",
-    "NAV / SP": "NAV per basic share divided by the current share price. Above 1.0x means the NAV estimate exceeds the share price.",
-    "Annual margin / share": "Annual equivalent-metal production multiplied by current margin per equivalent-metal ounce, divided by basic shares. This is an operating proxy, not EPS.",
+    "Risked NAV / share": "NAV per selected share count multiplied by the investor-entered development risk factor.",
+    "Risked NAV / SP": "Risked NAV per selected share count divided by the current share price. Above 1.0x means the risked screening value exceeds the share price.",
+    "NAV / share": "After-tax project NPV plus cash minus total debt, divided by the selected share count.",
+    "NAV / SP": "NAV per selected share count divided by the current share price. Above 1.0x means the NAV estimate exceeds the share price.",
+    "Annual margin / share": "Annual equivalent-metal production multiplied by current margin per equivalent-metal ounce, divided by the selected share count. This is an operating proxy, not EPS.",
     "Lifetime margin / SP": "Undiscounted lifetime operating-margin proxy per share divided by current share price. It is not project NPV or earnings.",
     "AISC": "Reported all-in sustaining cost per equivalent-metal ounce. It is the cost input subtracted from the equivalent-metal price to calculate the margin proxy.",
-    "AgEq price": "Payable silver and gold volumes valued at the latest stored metal prices, expressed per equivalent-metal ounce.",
+    "Mine life": "Sourced mine-life input used to calculate lifetime ounce and margin proxies. It may be project-specific or a temporary estimate; review its source and as-of date.",
+    "AgEq price": "Payable-metal volumes valued at the latest stored metal prices, expressed per equivalent-metal ounce.",
     "Margin per AgEq oz": "AgEq price minus reported AISC. It is a screening margin, not reported net income.",
-    "Annual AgEq oz / share": "Annual equivalent-metal production divided by basic shares outstanding.",
-    "Lifetime AgEq oz / share": "Annual equivalent-metal production multiplied by mine life, divided by basic shares outstanding.",
+    "Annual AgEq oz / share": "Annual equivalent-metal production divided by the selected share count.",
+    "Lifetime AgEq oz / share": "Annual equivalent-metal production multiplied by mine life, divided by the selected share count.",
     "Lifetime margin / share": "Annual operating-margin proxy per share multiplied by mine life. It is undiscounted.",
-    "Resource AgEq oz / share": "Total measured, indicated, and inferred equivalent-metal resources divided by basic shares. These are in-situ resource ounces, not a mine plan or reserves.",
+    "Resource AgEq oz / share": "Total measured, indicated, and inferred equivalent-metal resources divided by the selected share count. These are in-situ resource ounces, not a mine plan or reserves.",
     "Resource margin / SP": "Total resource equivalent-metal ounces per share multiplied by the current margin per equivalent-metal ounce, divided by share price. It is a speculative resource screening ratio, not NPV or expected profit.",
-    "After-tax NPV / share": "Company-reported after-tax feasibility-study NPV divided by basic shares. Review its source and study metal-price assumptions in Model inputs.",
-    "NPV / SP": "After-tax study NPV per basic share divided by the current share price. Above 1.0x means the study NPV estimate exceeds the share price.",
+    "After-tax NPV / share": "Company-reported after-tax feasibility-study NPV divided by the selected share count. Review its source and study metal-price assumptions in Model inputs.",
+    "NPV / SP": "After-tax study NPV per selected share count divided by the current share price. Above 1.0x means the study NPV estimate exceeds the share price.",
     "Future AgEq price": "Scenario payable-metal prices expressed per equivalent-metal ounce. This is a personal scenario, not a sourced market fact.",
-    "Future annual margin / share": "Scenario annual operating-margin proxy per basic share.",
-    "Future lifetime margin / share": "Scenario undiscounted lifetime operating-margin proxy per basic share.",
+    "Future annual margin / share": "Scenario annual operating-margin proxy per selected share count.",
+    "Future lifetime margin / share": "Scenario undiscounted lifetime operating-margin proxy per selected share count.",
     "Future lifetime margin / SP": "Scenario lifetime operating-margin proxy per share divided by current share price.",
     "Future resource margin / SP": "Scenario total resource equivalent-metal ounces per share multiplied by scenario margin per equivalent-metal ounce, divided by share price. It is a speculative resource screening ratio, not NPV or expected profit.",
 }
@@ -95,8 +104,9 @@ def render_math_formula(formula: str) -> QPixmap:
         dpi=180,
         prop=FontProperties(size=14, math_fontfamily="cm"),
     )
-    width, height = parsed.image.shape[1], parsed.image.shape[0]
-    alpha = parsed.image.tobytes()
+    alpha_buffer = memoryview(parsed.image)
+    height, width = alpha_buffer.shape
+    alpha = alpha_buffer.tobytes()
     pixel_count = width * height
     pixels = bytearray(pixel_count * 4)
     pixels[0::4] = bytes([24]) * pixel_count
@@ -261,8 +271,9 @@ QTabBar::tab { padding: 7px 12px; }
 def is_supported_parameter(parameter: str) -> bool:
     return (
         parameter in PARAMETER_UNITS
-        or bool(re.fullmatch(r"annual_payable_[a-z]+_ounces", parameter))
-        or bool(re.fullmatch(r"study_metal_price_[a-z]+_usd_per_ounce", parameter))
+        or bool(re.fullmatch(r"(?:after_tax_npv|cash|total_debt)_[a-z]{3}", parameter))
+        or bool(re.fullmatch(r"annual_payable_[a-z]+_(?:ounces|pounds)", parameter))
+        or bool(re.fullmatch(r"study_metal_price_[a-z]+_usd_per_(?:ounce|pound)", parameter))
     )
 
 
@@ -857,6 +868,8 @@ class MinerDashboard(QWidget):
         self.scenario_prices: dict[str, float] = {}
         self.development_risk_factor = 0.70
         self.additional_dilution_shares = 0.0
+        self.include_potential_dilution = False
+        self.include_potential_conversion = False
         self.active_tab = 1
         self.root_layout = QVBoxLayout(self)
         self.root_layout.setContentsMargins(24, 24, 24, 24)
@@ -905,6 +918,14 @@ class MinerDashboard(QWidget):
         self.layout = overview_layout
 
         parameters = self.database.list_current_parameters(self.miner.id)
+        parameters, project_model = self._consolidated_project_model_parameters(parameters)
+        has_partial_project_npv = project_model is not None and any(
+            "after_tax_npv_usd" not in project for project in project_model.projects
+        )
+        has_partial_project_resource = project_model is not None and any(
+            "total_resource_equivalent_ounces" not in project
+            for project in project_model.projects
+        )
         statuses = self.database.list_lifecycle_status_history(self.miner.id)
         if statuses:
             status = statuses[0]
@@ -921,6 +942,14 @@ class MinerDashboard(QWidget):
         overview_heading = QLabel("Sourced baseline")
         overview_heading.setObjectName("section-heading")
         self.layout.addWidget(overview_heading)
+        if project_model is not None:
+            project_model_detail = QLabel(
+                f"Consolidated project model: {project_model.name}\n"
+                f"As of {project_model.as_of_date} | {project_model.source}"
+            )
+            project_model_detail.setObjectName("analysis-note")
+            project_model_detail.setWordWrap(True)
+            self.layout.addWidget(project_model_detail)
         overview_form = QFormLayout()
         overview_parameters = [
             parameter
@@ -1013,10 +1042,6 @@ class MinerDashboard(QWidget):
                         trading_currency,
                     ),
                 ),
-                (
-                    "Lifetime margin / SP (x)",
-                    self._format_ratio(analysis.lifetime_margin_to_price),
-                ),
                 ("AgEq price ($/AgEq oz)", self._format_currency_value(analysis.equivalent_price_usd_per_ounce, "USD", "‡")),
                 ("Margin per AgEq oz ($)", self._format_currency_value(analysis.margin_usd_per_equivalent_ounce, "USD")),
                 ("Annual AgEq oz / share (oz)", f"{analysis.annual_equivalent_ounces_per_share:,.4f}{production_marker}"),
@@ -1039,7 +1064,7 @@ class MinerDashboard(QWidget):
             self.layout.addLayout(metrics)
             detailed_metrics = [
                 (
-                    f"Risked NAV / share ({self._currency_symbol(trading_currency)})",
+                    f"{'Partial ' if has_partial_project_npv else ''}Risked NAV / share ({self._currency_symbol(trading_currency)})",
                     "Unavailable"
                     if analysis.risked_nav_usd_per_share is None
                     else self._format_currency_value(
@@ -1049,13 +1074,13 @@ class MinerDashboard(QWidget):
                     ),
                 ),
                 (
-                    "Risked NAV / SP (x)",
+                    f"{'Partial ' if has_partial_project_npv else ''}Risked NAV / SP (x)",
                     "Unavailable"
                     if analysis.risked_nav_to_price is None
                     else self._format_ratio(analysis.risked_nav_to_price, "*"),
                 ),
                 (
-                    f"NAV / share ({self._currency_symbol(trading_currency)})",
+                    f"{'Partial ' if has_partial_project_npv else ''}NAV / share ({self._currency_symbol(trading_currency)})",
                     "Unavailable"
                     if analysis.equity_nav_usd_per_share is None
                     else self._format_currency_value(
@@ -1065,7 +1090,7 @@ class MinerDashboard(QWidget):
                     ),
                 ),
                 (
-                    "NAV / SP (x)",
+                    f"{'Partial ' if has_partial_project_npv else ''}NAV / SP (x)",
                     "Unavailable"
                     if analysis.equity_nav_to_price is None
                     else self._format_ratio(analysis.equity_nav_to_price, "*"),
@@ -1074,12 +1099,18 @@ class MinerDashboard(QWidget):
             if analysis.npv_usd_per_share is not None:
                 detailed_metrics.extend(
                     [
-                        (f"After-tax NPV / share ({self._currency_symbol(trading_currency)})", self._format_currency_value(analysis.npv_usd_per_share * usd_to_trading_rate, trading_currency, "*")),
-                        ("NPV / SP (x)", self._format_ratio(analysis.npv_to_price, "*")),
+                        (f"{'Partial ' if has_partial_project_npv else ''}After-tax NPV / share ({self._currency_symbol(trading_currency)})", self._format_currency_value(analysis.npv_usd_per_share * usd_to_trading_rate, trading_currency, "*")),
+                        (f"{'Partial ' if has_partial_project_npv else ''}NPV / SP (x)", self._format_ratio(analysis.npv_to_price, "*")),
                     ]
                 )
             detailed_metrics.append(
-                (f"Lifetime margin / share ({self._currency_symbol(trading_currency)})", self._format_currency_value(analysis.lifetime_margin_usd_per_share * usd_to_trading_rate, trading_currency))
+                (
+                    f"Lifetime margin / share ({self._currency_symbol(trading_currency)})",
+                    self._format_currency_value(
+                        analysis.lifetime_margin_usd_per_share * usd_to_trading_rate,
+                        trading_currency,
+                    ),
+                )
             )
             results = QHBoxLayout()
             for index, (label, value) in enumerate(detailed_metrics):
@@ -1115,6 +1146,21 @@ class MinerDashboard(QWidget):
                 aisc_layout.addWidget(aisc_label)
                 aisc_layout.addWidget(aisc_value)
                 aisc_row.addWidget(aisc_metric)
+                if mine_life_snapshot is not None:
+                    mine_life_metric = QWidget()
+                    mine_life_metric.setFixedWidth(180)
+                    mine_life_layout = QVBoxLayout(mine_life_metric)
+                    mine_life_layout.setContentsMargins(0, 8, 28, 8)
+                    mine_life_label = QLabel("Mine life (years)")
+                    mine_life_label.setObjectName("metric-label")
+                    mine_life_label.setToolTip(metric_explanation("Mine life"))
+                    mine_life_value = self._metric_value_widget(
+                        f"{mine_life_snapshot.value:,.2f}¶",
+                        metric_explanation("Mine life"),
+                    )
+                    mine_life_layout.addWidget(mine_life_label)
+                    mine_life_layout.addWidget(mine_life_value)
+                    aisc_row.addWidget(mine_life_metric)
                 aisc_row.addStretch()
                 self.layout.addLayout(aisc_row)
             resource_snapshot = parameter_snapshots.get("total_resource_equivalent_ounces")
@@ -1122,11 +1168,11 @@ class MinerDashboard(QWidget):
                 resource_row = QHBoxLayout()
                 for label, value in (
                     (
-                        "Resource AgEq oz / share (oz)",
+                        f"{'Partial ' if has_partial_project_resource else ''}Resource AgEq oz / share (oz)",
                         f"{analysis.resource_equivalent_ounces_per_share:,.4f}#",
                     ),
                     (
-                        "Resource margin / SP (x)",
+                        f"{'Partial ' if has_partial_project_resource else ''}Resource margin / SP (x)",
                         self._format_ratio(analysis.resource_margin_to_price, "#"),
                     ),
                 ):
@@ -1145,8 +1191,32 @@ class MinerDashboard(QWidget):
                     resource_row.addWidget(metric)
                 resource_row.addStretch()
                 self.layout.addLayout(resource_row)
+            lifetime_margin_row = QHBoxLayout()
+            lifetime_margin_metric = QWidget()
+            lifetime_margin_metric.setFixedWidth(180)
+            lifetime_margin_layout = QVBoxLayout(lifetime_margin_metric)
+            lifetime_margin_layout.setContentsMargins(0, 8, 28, 8)
+            lifetime_margin_label = QLabel("Lifetime margin / SP (x)")
+            lifetime_margin_label.setObjectName("metric-label")
+            lifetime_margin_label.setToolTip(metric_explanation("Lifetime margin / SP"))
+            lifetime_margin_value = self._metric_value_widget(
+                self._format_ratio(analysis.lifetime_margin_to_price),
+                metric_explanation("Lifetime margin / SP"),
+            )
+            lifetime_margin_layout.addWidget(lifetime_margin_label)
+            lifetime_margin_layout.addWidget(lifetime_margin_value)
+            lifetime_margin_row.addWidget(lifetime_margin_metric)
+            lifetime_margin_row.addStretch()
+            self.layout.addLayout(lifetime_margin_row)
             self._render_scenario_analysis(
                 parameters, market_snapshot, analysis, trading_currency, usd_to_trading_rate
+            )
+            self._render_dilution_analysis(
+                analysis,
+                trading_currency,
+                usd_to_trading_rate,
+                parameter_values.get("potential_dilution_shares"),
+                parameter_values.get("potential_conversion_shares"),
             )
             self.layout.addSpacing(12)
             study_prices = [
@@ -1186,6 +1256,14 @@ class MinerDashboard(QWidget):
                 aisc_note.setObjectName("analysis-note")
                 aisc_note.setWordWrap(True)
                 self.layout.addWidget(aisc_note)
+            if mine_life_snapshot is not None:
+                mine_life_note = QLabel(
+                    f"¶ Mine life source: {mine_life_snapshot.source} "
+                    f"| As of {mine_life_snapshot.as_of_date}."
+                )
+                mine_life_note.setObjectName("analysis-note")
+                mine_life_note.setWordWrap(True)
+                self.layout.addWidget(mine_life_note)
             if resource_snapshot is not None:
                 resource_note = QLabel(
                     "# Resource screening uses total measured, indicated, and inferred "
@@ -1199,13 +1277,18 @@ class MinerDashboard(QWidget):
             metal_price_snapshots = [
                 snapshot
                 for parameter in parameter_snapshots
-                if (match := re.fullmatch(r"annual_payable_([a-z]+)_ounces", parameter))
+                if (
+                    match := re.fullmatch(
+                        r"annual_payable_([a-z]+)_(?:ounces|pounds)", parameter
+                    )
+                )
                 and (snapshot := self.database.get_latest_commodity_price(match.group(1)))
             ]
             if metal_price_snapshots:
                 prices_text = ", ".join(
                     f"{snapshot.commodity.title()} "
-                    f"{self._format_currency_value(snapshot.price, snapshot.currency)}/oz"
+                    f"{self._format_currency_value(snapshot.price, snapshot.currency)}"
+                    f"/{snapshot.unit.rsplit('/', 1)[-1]}"
                     for snapshot in sorted(
                         metal_price_snapshots,
                         key=lambda snapshot: (
@@ -1259,16 +1342,18 @@ class MinerDashboard(QWidget):
         if quote_price_usd is None:
             return None
         values = {parameter.parameter: parameter.value for parameter in parameters}
-        metal_volumes = {
-            parameter.removeprefix("annual_payable_").removesuffix("_ounces"): value
-            for parameter, value in values.items()
-            if parameter.startswith("annual_payable_") and parameter.endswith("_ounces")
-        }
+        metal_volumes = self._payable_metal_volumes(values)
+        if metal_volumes is None:
+            return None
         if metal_prices is None:
             metal_prices = {}
             for metal in metal_volumes:
                 price = self.database.get_latest_commodity_price(metal)
-                if price is None or price.currency != "USD" or price.unit != "USD/oz":
+                if (
+                    price is None
+                    or price.currency != "USD"
+                    or price.unit != COMMODITIES[metal].price_unit
+                ):
                     return None
                 metal_prices[metal] = price.price
         required = {
@@ -1286,32 +1371,140 @@ class MinerDashboard(QWidget):
                 annual_equivalent_ounces=values["annual_production_ounces"],
                 aisc_usd_per_equivalent_ounce=values["aisc_per_ounce"],
                 mine_life_years=values["mine_life_years"],
-                shares_outstanding=values["basic_shares_outstanding"],
+                shares_outstanding=(
+                    values["basic_shares_outstanding"]
+                    + (
+                        values.get("potential_dilution_shares", 0)
+                        if self.include_potential_dilution
+                        else 0
+                    )
+                    + (
+                        values.get("potential_conversion_shares", 0)
+                        if self.include_potential_conversion
+                        else 0
+                    )
+                ),
                 share_price_usd=quote_price_usd,
                 total_resource_equivalent_ounces=values.get("total_resource_equivalent_ounces"),
                 after_tax_npv_usd=values.get("after_tax_npv_usd"),
-                cash_usd=values.get("cash_usd"),
-                total_debt_usd=values.get("total_debt_usd"),
+                cash_usd=self._financial_value_usd(values, "cash"),
+                total_debt_usd=self._financial_value_usd(values, "total_debt"),
                 development_risk_factor=self.development_risk_factor,
                 additional_dilution_shares=self.additional_dilution_shares,
-                potential_conversion_shares=values.get("potential_conversion_shares"),
+                potential_conversion_shares=(
+                    None
+                    if self.include_potential_conversion
+                    else values.get("potential_conversion_shares")
+                ),
             )
         )
 
-    def _current_metal_prices(self, parameters) -> dict[str, float] | None:
-        metals = {
-            parameter.parameter.removeprefix("annual_payable_").removesuffix("_ounces")
-            for parameter in parameters
-            if parameter.parameter.startswith("annual_payable_")
-            and parameter.parameter.endswith("_ounces")
+    def _consolidated_project_model_parameters(self, parameters):
+        project_model = self.database.get_latest_project_model_snapshot(self.miner.id)
+        if project_model is None:
+            return parameters, None
+        try:
+            projects = [
+                ProjectInputs(
+                    name=str(project["name"]),
+                    annual_payable_metal_volumes={
+                        str(metal): float(volume)
+                        for metal, volume in dict(project["annual_payable_metal_volumes"]).items()
+                    },
+                    annual_equivalent_ounces=float(project["annual_equivalent_ounces"]),
+                    aisc_usd_per_equivalent_ounce=float(
+                        project["aisc_usd_per_equivalent_ounce"]
+                    ),
+                    mine_life_years=float(project["mine_life_years"]),
+                    total_resource_equivalent_ounces=(
+                        float(project["total_resource_equivalent_ounces"])
+                        if project.get("total_resource_equivalent_ounces") is not None
+                        else None
+                    ),
+                    after_tax_npv_usd=(
+                        float(project["after_tax_npv_usd"])
+                        if project.get("after_tax_npv_usd") is not None
+                        else None
+                    ),
+                )
+                for project in project_model.projects
+            ]
+            consolidated = consolidate_project_inputs(projects)
+        except (KeyError, TypeError, ValueError):
+            return parameters, None
+        source = f"Consolidated project model '{project_model.name}': {project_model.source}"
+        snapshots = {snapshot.parameter: snapshot for snapshot in parameters}
+        for parameter in tuple(snapshots):
+            if re.fullmatch(r"annual_payable_[a-z]+_(?:ounces|pounds)", parameter):
+                del snapshots[parameter]
+        values = {
+            "annual_production_ounces": (consolidated.annual_equivalent_ounces, "AgEq oz/year"),
+            "aisc_per_ounce": (consolidated.aisc_usd_per_equivalent_ounce, "USD/AgEq oz"),
+            "mine_life_years": (consolidated.mine_life_years, "years"),
         }
+        resource_value = (
+            consolidated.total_resource_equivalent_ounces
+            or consolidated.partial_total_resource_equivalent_ounces
+        )
+        if resource_value is not None:
+            values["total_resource_equivalent_ounces"] = (
+                resource_value,
+                "AgEq oz",
+            )
+        npv_value = consolidated.after_tax_npv_usd or consolidated.partial_after_tax_npv_usd
+        if npv_value is not None:
+            values["after_tax_npv_usd"] = (npv_value, "USD")
+        for metal, volume in consolidated.annual_payable_metal_volumes.items():
+            values[f"annual_payable_{metal}_ounces"] = (volume, f"{metal.title()} oz/year")
+        for parameter, (value, unit) in values.items():
+            snapshots[parameter] = ParameterSnapshot(
+                0, self.miner.id, parameter, value, unit, project_model.as_of_date, source
+            )
+        return list(snapshots.values()), project_model
+
+    def _financial_value_usd(self, values: dict[str, float], parameter: str) -> float | None:
+        usd_value = values.get(f"{parameter}_usd")
+        if usd_value is not None:
+            return usd_value
+        prefix = f"{parameter}_"
+        for name, value in values.items():
+            if not name.startswith(prefix):
+                continue
+            currency = name.removeprefix(prefix).upper()
+            rate = self._usd_to_currency_rate(currency)
+            if rate is not None:
+                return value / rate
+        return None
+
+    def _current_metal_prices(self, parameters) -> dict[str, float] | None:
+        values = {parameter.parameter: parameter.value for parameter in parameters}
+        metals = self._payable_metal_volumes(values)
+        if metals is None:
+            return None
         prices = {}
         for metal in metals:
             price = self.database.get_latest_commodity_price(metal)
-            if price is None or price.currency != "USD" or price.unit != "USD/oz":
+            if (
+                price is None
+                or price.currency != "USD"
+                or price.unit != COMMODITIES[metal].price_unit
+            ):
                 return None
             prices[metal] = price.price
         return prices
+
+    def _payable_metal_volumes(self, values: dict[str, float]) -> dict[str, float] | None:
+        volumes = {}
+        for parameter, value in values.items():
+            match = re.fullmatch(r"annual_payable_([a-z]+)_(ounces|pounds)", parameter)
+            if match is None:
+                continue
+            metal, quantity = match.groups()
+            definition = COMMODITIES.get(metal)
+            if definition is None or definition.volume_unit_suffix != quantity:
+                return None
+            volumes[metal] = value
+        return volumes
 
     def _render_scenario_analysis(
         self, parameters, market_snapshot, current, trading_currency: str, usd_to_trading_rate: float
@@ -1325,13 +1518,14 @@ class MinerDashboard(QWidget):
         self.layout.addWidget(QLabel("Scenario metal prices"))
         controls = QFormLayout()
         for metal in sorted(current_prices):
+            definition = COMMODITIES[metal]
             price_input = QDoubleSpinBox()
             price_input.setObjectName(f"scenario-price-{metal}")
             price_input.setRange(0.01, max(current_prices[metal] * 3, 10_000))
-            price_input.setDecimals(0)
-            price_input.setSingleStep({"gold": 100.0, "silver": 10.0}.get(metal, 1.0))
+            price_input.setDecimals(definition.scenario_decimals)
+            price_input.setSingleStep(definition.scenario_step)
             price_input.setPrefix("$")
-            price_input.setSuffix("/oz")
+            price_input.setSuffix(f"/{definition.price_unit.rsplit('/', 1)[-1]}")
             price_input.setValue(self.scenario_prices[metal])
             price_input.editingFinished.connect(
                 lambda input_widget=price_input, commodity=metal: self.set_scenario_price(
@@ -1470,11 +1664,38 @@ class MinerDashboard(QWidget):
         self.render()
 
     def _render_dilution_analysis(
-        self, analysis, trading_currency: str, usd_to_trading_rate: float
+        self,
+        analysis,
+        trading_currency: str,
+        usd_to_trading_rate: float,
+        potential_dilution_shares: float | None,
+        potential_conversion_shares: float | None,
     ) -> None:
         if analysis.diluted_equity_nav_usd_per_share is None:
             return
         self.layout.addWidget(QLabel("Dilution scenario"))
+        if potential_dilution_shares is not None:
+            include_dilution = QCheckBox(
+                f"Include documented dilution ({potential_dilution_shares:,.0f} shares)"
+            )
+            include_dilution.setObjectName("include-potential-dilution")
+            include_dilution.setChecked(self.include_potential_dilution)
+            include_dilution.setToolTip(
+                "Use documented options, warrants, and RSUs in all per-share analysis metrics."
+            )
+            include_dilution.toggled.connect(self.set_include_potential_dilution)
+            self.layout.addWidget(include_dilution)
+        if potential_conversion_shares is not None:
+            include_conversion = QCheckBox(
+                f"Include potential conversion ({potential_conversion_shares:,.0f} shares)"
+            )
+            include_conversion.setObjectName("include-potential-conversion")
+            include_conversion.setChecked(self.include_potential_conversion)
+            include_conversion.setToolTip(
+                "Use potential conversion shares in all per-share metrics. Debt treatment remains unchanged."
+            )
+            include_conversion.toggled.connect(self.set_include_potential_conversion)
+            self.layout.addWidget(include_conversion)
         dilution_input = QDoubleSpinBox()
         dilution_input.setRange(0, 10_000_000_000)
         dilution_input.setDecimals(0)
@@ -1548,6 +1769,14 @@ class MinerDashboard(QWidget):
 
     def set_additional_dilution_shares(self, shares: float) -> None:
         self.additional_dilution_shares = shares
+        self.render()
+
+    def set_include_potential_dilution(self, include: bool) -> None:
+        self.include_potential_dilution = include
+        self.render()
+
+    def set_include_potential_conversion(self, include: bool) -> None:
+        self.include_potential_conversion = include
         self.render()
 
     def _render_saved_scenarios(self) -> None:
@@ -1881,7 +2110,7 @@ def main() -> None:
     application = QApplication(sys.argv)
     application.setStyleSheet(APPLICATION_STYLE)
     database_path = Path("data") / "gosimine.sqlite3"
-    initialize_database(database_path, Path("seed") / "miners.json")
+    initialize_database(database_path, Path("seed") / "miners")
     database = Database(database_path)
     window = MainWindow(database)
     window.show()

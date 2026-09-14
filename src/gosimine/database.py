@@ -123,6 +123,16 @@ class AnalysisScenario:
     created_at: str
 
 
+@dataclass(frozen=True)
+class ProjectModelSnapshot:
+    id: int
+    miner_id: int
+    name: str
+    projects: list[dict[str, object]]
+    as_of_date: str
+    source: str
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,6 +298,19 @@ class Database:
             )
             """
         )
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_model_snapshots (
+                id INTEGER PRIMARY KEY,
+                miner_id INTEGER NOT NULL REFERENCES miners(id),
+                name TEXT NOT NULL,
+                projects TEXT NOT NULL,
+                as_of_date TEXT NOT NULL,
+                source TEXT NOT NULL,
+                UNIQUE (miner_id, name, projects, as_of_date, source)
+            )
+            """
+        )
         self.connection.commit()
 
     def list_miners(self) -> list[Miner]:
@@ -429,6 +452,14 @@ class Database:
                 str(milestone["status"]),
                 str(milestone.get("detail", "")),
                 str(milestone["source"]),
+            )
+        for project_model in record.get("project_models", []):
+            self.add_project_model_snapshot(
+                miner.id,
+                str(project_model["name"]),
+                list(project_model["projects"]),
+                str(project_model["as_of_date"]),
+                str(project_model["source"]),
             )
         return miner
 
@@ -584,7 +615,7 @@ class Database:
         share_currency: str,
         share_market_timestamp: str,
         shares_outstanding: float,
-        commodity_prices: list[tuple[str, float, str, str]],
+        commodity_prices: list[tuple[str, float, str, str, str]],
         exchange_rates: list[tuple[str, str, float]],
         retrieved_at: str,
         source: str,
@@ -624,12 +655,12 @@ class Database:
                         commodity.strip().lower(),
                         price,
                         currency.strip().upper(),
-                        "USD/oz",
+                        unit.strip(),
                         market_timestamp.strip(),
                         retrieved_at.strip(),
                         source.strip(),
                     )
-                    for commodity, price, currency, market_timestamp in commodity_prices
+                    for commodity, price, currency, unit, market_timestamp in commodity_prices
                 ],
             )
             self.connection.executemany(
@@ -823,6 +854,64 @@ class Database:
             (miner_id,),
         ).fetchall()
         return [self._analysis_scenario_from_row(row) for row in rows]
+
+    def add_project_model_snapshot(
+        self,
+        miner_id: int,
+        name: str,
+        projects: list[dict[str, object]],
+        as_of_date: str,
+        source: str,
+    ) -> ProjectModelSnapshot:
+        if not name.strip():
+            raise ValueError("Project model name is required")
+        if not projects:
+            raise ValueError("A project model requires at least one project")
+        if not as_of_date.strip():
+            raise ValueError("Project model as-of date is required")
+        if not source.strip():
+            raise ValueError("Project model source is required")
+        values = (
+            miner_id,
+            name.strip(),
+            json.dumps(projects, sort_keys=True),
+            as_of_date.strip(),
+            source.strip(),
+        )
+        cursor = self.connection.execute(
+            "INSERT OR IGNORE INTO project_model_snapshots "
+            "(miner_id, name, projects, as_of_date, source) VALUES (?, ?, ?, ?, ?)",
+            values,
+        )
+        self.connection.commit()
+        row_id = cursor.lastrowid
+        if row_id == 0:
+            row_id = self.connection.execute(
+                "SELECT id FROM project_model_snapshots WHERE miner_id = ? AND name = ? "
+                "AND projects = ? AND as_of_date = ? AND source = ?",
+                values,
+            ).fetchone()["id"]
+        return ProjectModelSnapshot(row_id, miner_id, name.strip(), projects, as_of_date.strip(), source.strip())
+
+    def get_latest_project_model_snapshot(
+        self, miner_id: int
+    ) -> ProjectModelSnapshot | None:
+        row = self.connection.execute(
+            "SELECT id, miner_id, name, projects, as_of_date, source "
+            "FROM project_model_snapshots WHERE miner_id = ? "
+            "ORDER BY as_of_date DESC, id DESC LIMIT 1",
+            (miner_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return ProjectModelSnapshot(
+            row["id"],
+            row["miner_id"],
+            row["name"],
+            json.loads(row["projects"]),
+            row["as_of_date"],
+            row["source"],
+        )
 
     @staticmethod
     def _analysis_scenario_from_row(row: sqlite3.Row) -> AnalysisScenario:

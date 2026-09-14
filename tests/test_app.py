@@ -6,6 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -32,7 +33,7 @@ def select_seeded_vzla(database: Database):
 
 def test_main_window_selects_a_catalog_miner(tmp_path: Path, monkeypatch) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     initialize_database(database_path, seed_path)
     database = Database(database_path)
 
@@ -99,7 +100,7 @@ def test_main_window_restores_its_previous_size(tmp_path: Path) -> None:
 
 def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     initialize_database(database_path, seed_path)
     database = Database(database_path)
     miner = select_seeded_vzla(database)
@@ -118,6 +119,14 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
         "shares",
         "2026-09-12",
         "Yahoo Finance",
+    )
+    database.add_parameter_snapshot(
+        miner.id,
+        "potential_dilution_shares",
+        20_000_000,
+        "shares",
+        "2026-09-12",
+        "Issuer filing",
     )
     database.add_commodity_price_snapshot(
         "silver",
@@ -180,7 +189,7 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
         label.text()
         for label in dashboard.findChildren(QLabel)
         if label.objectName() == "metric-marker"
-    ] == ["‡", "§", "§", "*", "*", "*", "*", "*", "*", "†", "#", "#", "#"]
+    ] == ["‡", "§", "§", "*", "*", "*", "*", "*", "*", "†", "¶", "#", "#", "#"]
     assert "* Silver $35.50/oz, Gold $3,100.00/oz; 5% discount rate; FS: https://vizslasilvercorp.com/" in text
     assert "† AISC source: https://vizslasilvercorp.com/" in text
     assert "# Resource screening uses total measured, indicated, and inferred in-situ resources" in text
@@ -222,6 +231,20 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
         button.objectName() == "explain-metrics"
         for button in dashboard.findChildren(QPushButton)
     )
+    dilution_checkbox = dashboard.findChild(QCheckBox, "include-potential-dilution")
+    assert dilution_checkbox is not None
+    assert not dilution_checkbox.isChecked()
+    dilution_checkbox.setChecked(True)
+    application.processEvents()
+    diluted_text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
+    assert "Shares after dilution\n375,056,872" in diluted_text
+    conversion_checkbox = dashboard.findChild(QCheckBox, "include-potential-conversion")
+    assert conversion_checkbox is not None
+    assert not conversion_checkbox.isChecked()
+    conversion_checkbox.setChecked(True)
+    application.processEvents()
+    converted_text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
+    assert "Shares after dilution\n426,448,732" in converted_text
     assert any(
         button.text() == "Update lifecycle status"
         for button in dashboard.findChildren(QPushButton)
@@ -231,11 +254,54 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
     database.close()
 
 
+def test_miner_dashboard_displays_seeded_abra_data(tmp_path: Path) -> None:
+    database_path = tmp_path / "gosimine.sqlite3"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
+    initialize_database(database_path, seed_path)
+    database = Database(database_path)
+    miner = database.select_catalog_miner("ABRA.TO")
+    database.add_market_snapshot(
+        miner.id,
+        13.70,
+        "CAD",
+        "2026-09-14T20:00:00+00:00",
+        "2026-09-14T21:00:00+00:00",
+        "Yahoo Finance",
+    )
+    for commodity, price in {"silver": 64.55, "gold": 4_366.20}.items():
+        database.add_commodity_price_snapshot(
+            commodity,
+            price,
+            "USD",
+            "USD/oz",
+            "2026-09-14T20:00:00+00:00",
+            "2026-09-14T21:00:00+00:00",
+            "Yahoo Finance",
+        )
+    database.add_exchange_rate_snapshot(
+        "USD", "CAD", 1.40, "2026-09-14T21:00:00+00:00", "Yahoo Finance"
+    )
+
+    application = QApplication.instance() or QApplication([])
+    dashboard = MinerDashboard(database, miner)
+    dashboard.show()
+    application.processEvents()
+    text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
+
+    assert "Analysis unavailable until market and model inputs are refreshed." not in text
+    assert "AgEq price ($/AgEq oz)" in text
+    assert "NAV / share (C$)" in text
+    assert "Lifetime margin / SP (x)" in text
+
+    dashboard.close()
+    database.close()
+
+
 def test_miner_dashboard_recalculates_a_temporary_metal_price_scenario(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     initialize_database(database_path, seed_path)
     database = Database(database_path)
     miner = select_seeded_vzla(database)
@@ -282,6 +348,92 @@ def test_miner_dashboard_recalculates_a_temporary_metal_price_scenario(
     dashboard.close()
     database.close()
 
+def test_miner_dashboard_includes_copper_in_the_payable_metal_mix(
+    tmp_path: Path,
+) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    miner = database.add_miner("Copper Silver", "CUSI", "Silver", "Producer")
+    for parameter, value in {
+        "annual_payable_silver_ounces": 1_000_000,
+        "annual_payable_copper_pounds": 5_000_000,
+        "annual_production_ounces": 1_500_000,
+        "aisc_per_ounce": 20,
+        "mine_life_years": 5,
+        "basic_shares_outstanding": 100_000_000,
+    }.items():
+        database.add_parameter_snapshot(
+            miner.id, parameter, value, "test", "2026-09-12", "Test"
+        )
+    database.add_market_snapshot(
+        miner.id,
+        5.00,
+        "USD",
+        "2026-09-12T20:00:00+00:00",
+        "2026-09-12T21:00:00+00:00",
+        "Test",
+    )
+    for commodity, price, unit in (
+        ("silver", 30.00, "USD/oz"),
+        ("copper", 4.50, "USD/lb"),
+    ):
+        database.add_commodity_price_snapshot(
+            commodity,
+            price,
+            "USD",
+            unit,
+            "2026-09-12T20:00:00+00:00",
+            "2026-09-12T21:00:00",
+            "Test",
+        )
+
+    application = QApplication.instance() or QApplication([])
+    dashboard = MinerDashboard(database, miner)
+    application.processEvents()
+
+    copper_input = dashboard.findChild(QDoubleSpinBox, "scenario-price-copper")
+    assert copper_input is not None
+    assert copper_input.decimals() == 2
+    assert copper_input.singleStep() == 0.25
+    assert copper_input.suffix() == "/lb"
+    text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
+    assert "Copper 4.50 $/lb" in text
+    assert "Future case" in text
+
+    dashboard.close()
+    database.close()
+
+
+def test_miner_dashboard_shows_lifetime_margin_to_price_without_resources(
+    tmp_path: Path,
+) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    miner = database.add_miner("Gold Producer", "GOLD", "Gold", "Producer")
+    for parameter, value in {
+        "annual_payable_gold_ounces": 100_000,
+        "annual_production_ounces": 100_000,
+        "aisc_per_ounce": 1_000,
+        "mine_life_years": 5,
+        "basic_shares_outstanding": 10_000_000,
+    }.items():
+        database.add_parameter_snapshot(
+            miner.id, parameter, value, "test", "2026-09-14", "Test"
+        )
+    database.add_market_snapshot(
+        miner.id, 10, "USD", "2026-09-14T20:00:00+00:00", "2026-09-14T21:00:00+00:00", "Test"
+    )
+    database.add_commodity_price_snapshot(
+        "gold", 2_000, "USD", "USD/oz", "2026-09-14T20:00:00+00:00", "2026-09-14T21:00:00+00:00", "Test"
+    )
+
+    application = QApplication.instance() or QApplication([])
+    dashboard = MinerDashboard(database, miner)
+    application.processEvents()
+
+    text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
+    assert "Lifetime margin / SP (x)" in text
+    assert "5.00x" in text
+    dashboard.close()
+    database.close()
 
 def test_miner_dashboard_opens_metric_explanations(tmp_path: Path, monkeypatch) -> None:
     database = Database(tmp_path / "gosimine.sqlite3")
@@ -347,7 +499,7 @@ def test_usd_listing_does_not_require_an_fx_rate(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     initialize_database(database_path, seed_path)
     database = Database(database_path)
     miner = select_seeded_vzla(database)
@@ -387,6 +539,9 @@ def test_miner_dashboard_converts_per_share_values_to_trading_currency(
         "aisc_per_ounce": 10.61,
         "mine_life_years": 9.4,
         "basic_shares_outstanding": 355_056_872,
+        "after_tax_npv_usd": 1_802_000_000,
+        "cash_cad": 406_495_000,
+        "total_debt_cad": 240_366_000,
     }.items():
         database.add_parameter_snapshot(
             miner.id, parameter, value, "test", "2026-09-12", "Test"
@@ -406,6 +561,10 @@ def test_miner_dashboard_converts_per_share_values_to_trading_currency(
     assert "Share price (C$)" in text
     assert "3.19" in text
     assert "Annual margin / share (C$)" in text
+    assert "Mine life (years)" in text
+    assert "9.40" in text
+    assert "NAV / share (C$)" in text
+    assert "7.37 C$" in text
     dashboard.close()
     database.close()
 
@@ -414,7 +573,7 @@ def test_miner_dashboard_refresh_button_updates_market_data(
     tmp_path: Path, monkeypatch
 ) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     initialize_database(database_path, seed_path)
     database = Database(database_path)
     miner = select_seeded_vzla(database)
@@ -651,7 +810,7 @@ def test_miner_dashboard_updates_lifecycle_status(tmp_path: Path, monkeypatch) -
 
 def test_miner_dashboard_saves_and_loads_a_scenario(tmp_path: Path, monkeypatch) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     initialize_database(database_path, seed_path)
     database = Database(database_path)
     miner = select_seeded_vzla(database)

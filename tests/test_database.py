@@ -191,7 +191,7 @@ def test_parameter_snapshot_requires_existing_miner(tmp_path: Path) -> None:
 
 def test_initialize_database_imports_vzla_seed_idempotently(tmp_path: Path) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
 
     initialize_database(database_path, seed_path)
     initialize_database(database_path, seed_path)
@@ -214,6 +214,41 @@ def test_initialize_database_imports_vzla_seed_idempotently(tmp_path: Path) -> N
     database.close()
 
 
+def test_catalog_imports_ctgo_three_project_model(tmp_path: Path) -> None:
+    database_path = tmp_path / "gosimine.sqlite3"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
+    initialize_database(database_path, seed_path)
+    database = Database(database_path)
+
+    miner = database.select_catalog_miner("CTGO")
+    model = database.get_latest_project_model_snapshot(miner.id)
+
+    assert model is not None
+    assert model.name == "Contango three-project temporary model"
+    assert [project["name"] for project in model.projects] == [
+        "Manh Choh (30%)",
+        "Johnson Tract (100%)",
+        "Lucky Shot (100%)",
+    ]
+    database.close()
+
+
+def test_catalog_imports_abra_debt_snapshot(tmp_path: Path) -> None:
+    database_path = tmp_path / "gosimine.sqlite3"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
+    initialize_database(database_path, seed_path)
+    database = Database(database_path)
+
+    miner = database.select_catalog_miner("ABRA.TO")
+    parameters = {
+        snapshot.parameter: snapshot
+        for snapshot in database.list_current_parameters(miner.id)
+    }
+
+    assert parameters["total_debt_cad"].value == 0.0
+    database.close()
+
+
 def test_milestones_are_sorted_by_target_date_and_id(tmp_path: Path) -> None:
     database = Database(tmp_path / "gosimine.sqlite3")
     miner = database.add_miner("Aurora Gold", "AUG", "Gold", "Developer")
@@ -230,7 +265,7 @@ def test_milestones_are_sorted_by_target_date_and_id(tmp_path: Path) -> None:
 
 def test_initialize_database_preserves_an_existing_database(tmp_path: Path) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     database = Database(database_path)
     database.add_miner("Aurora Gold", "AUG", "Gold", "Producer")
     database.close()
@@ -246,7 +281,7 @@ def test_populate_database_adds_seed_without_removing_existing_research(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners.json"
+    seed_path = Path(__file__).parents[1] / "seed" / "miners"
     database = Database(database_path)
     miner = database.add_miner("Aurora Gold", "AUG", "Gold", "Producer")
     database.add_research_entry(
@@ -258,7 +293,16 @@ def test_populate_database_adds_seed_without_removing_existing_research(
 
     database = Database(database_path)
     assert [miner.ticker for miner in database.list_miners()] == ["AUG"]
-    assert [miner.ticker for miner in database.list_catalog_miners()] == ["VZLA"]
+    assert [miner.ticker for miner in database.list_catalog_miners()] == [
+        "ABRA.TO",
+        "ASM",
+        "AYA",
+        "CTGO",
+        "GORO",
+        "SCZM",
+        "TSK.TO",
+        "VZLA",
+    ]
     assert len(database.list_research_entries(miner.id)) == 1
     database.close()
 
@@ -316,4 +360,17 @@ def test_analysis_scenario_preserves_personal_assumptions(tmp_path: Path) -> Non
 
     assert database.get_analysis_scenario(scenario.id) == scenario
     assert database.list_analysis_scenarios(miner.id) == [scenario]
+    database.close()
+
+
+def test_project_model_snapshot_preserves_project_components(tmp_path: Path) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    miner = database.add_miner("Aurora Gold", "AUG", "Gold", "Producer")
+    projects = [{"name": "Mine A", "annual_equivalent_ounces": 100_000}]
+
+    snapshot = database.add_project_model_snapshot(
+        miner.id, "Portfolio model", projects, "2026-09-14", "User model"
+    )
+
+    assert database.get_latest_project_model_snapshot(miner.id) == snapshot
     database.close()

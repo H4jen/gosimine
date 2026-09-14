@@ -1,0 +1,112 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2022-02-22",
+    "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+    "value": "Producer"
+  },
+  "name": "Aya Gold & Silver Inc.",
+  "parameters": [
+    {
+      "as_of_date": "2022-02-22",
+      "name": "annual_production_ounces",
+      "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+      "unit": "AgEq oz/year",
+      "value": 7900000.0
+    },
+    {
+      "as_of_date": "2022-02-22",
+      "name": "aisc_per_ounce",
+      "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+      "unit": "USD/AgEq oz",
+      "value": 9.58
+    },
+    {
+      "as_of_date": "2026-08-13",
+      "name": "basic_shares_outstanding",
+      "source": "https://www.ayagoldsilver.com/_resources/financials/2026/Q2-2026-Aya-Gold-Silver-Inc-MD-A.pdf?v=090806",
+      "unit": "shares",
+      "value": 144036168.0
+    },
+    {
+      "as_of_date": "2022-02-22",
+      "name": "mine_life_years",
+      "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+      "unit": "years",
+      "value": 11.0
+    },
+    {
+      "as_of_date": "2025-12-16",
+      "name": "measured_indicated_resource_equivalent_ounces",
+      "source": "https://www.ayagoldsilver.com/_resources/technical_reports/Aya-Zgounder-Tech-Rept-NI-43-101.pdf?v=091411",
+      "unit": "AgEq oz",
+      "value": 100250000.0
+    },
+    {
+      "as_of_date": "2025-12-16",
+      "name": "inferred_resource_equivalent_ounces",
+      "source": "https://www.ayagoldsilver.com/_resources/technical_reports/Aya-Zgounder-Tech-Rept-NI-43-101.pdf?v=091411",
+      "unit": "AgEq oz",
+      "value": 4500000.0
+    },
+    {
+      "as_of_date": "2025-12-16",
+      "name": "total_resource_equivalent_ounces",
+      "source": "https://www.ayagoldsilver.com/_resources/technical_reports/Aya-Zgounder-Tech-Rept-NI-43-101.pdf?v=091411",
+      "unit": "AgEq oz",
+      "value": 104750000.0
+    },
+    {
+      "as_of_date": "2022-02-22",
+      "name": "study_discount_rate_percent",
+      "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+      "unit": "%",
+      "value": 5.0
+    },
+    {
+      "as_of_date": "2026-08-13",
+      "name": "potential_dilution_shares",
+      "source": "https://www.ayagoldsilver.com/_resources/financials/2026/Q2-2026-Aya-Gold-Silver-Inc-MD-A.pdf?v=090806",
+      "unit": "shares",
+      "value": 9598261.0
+    },
+    {
+      "as_of_date": "2022-02-22",
+      "name": "after_tax_npv_usd",
+      "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+      "unit": "USD",
+      "value": 373000000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "cash_usd",
+      "source": "Aya Q2 2026 Financial Statements: cash and cash equivalents USD 182.808M; total debt USD 86.764M, including USD 28.571M current debt, USD 55.087M long-term debt, and USD 3.106M interest payable and commitment charges, at June 30, 2026. https://ayagoldsilver.com/_resources/financials/2026/Q2-2026-Aya-Gold-Silver-Inc-Financial-Statements.pdf?v=082703",
+      "unit": "USD",
+      "value": 182808000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "total_debt_usd",
+      "source": "Aya Q2 2026 Financial Statements: cash and cash equivalents USD 182.808M; total debt USD 86.764M, including USD 28.571M current debt, USD 55.087M long-term debt, and USD 3.106M interest payable and commitment charges, at June 30, 2026. https://ayagoldsilver.com/_resources/financials/2026/Q2-2026-Aya-Gold-Silver-Inc-Financial-Statements.pdf?v=082703",
+      "unit": "USD",
+      "value": 86764000.0
+    },
+    {
+      "as_of_date": "2022-02-22",
+      "name": "annual_payable_silver_ounces",
+      "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+      "unit": "Ag oz/year",
+      "value": 7900000.0
+    },
+    {
+      "as_of_date": "2022-02-22",
+      "name": "study_metal_price_silver_usd_per_ounce",
+      "source": "Temporary estimate - verification pending: annual production 7,900,000 Ag oz/year; annual payable silver 7,900,000 oz/year; AISC USD 9.58/Ag oz; 11-year mine life; after-tax NPV USD 373M; 5% discount rate; and silver price USD 22/oz are from Aya's February 2022 Zgounder Expansion Feasibility Study. These historical study values predate the December 2025 Zgounder technical report and are not current company-wide guidance. https://www.ayagoldsilver.com/news/news-releases/aya-gold-silver-announces-robust-expansion-feasibility-study-for-zgounder-pre-tax-irr-of-57-payback-period-of-1-7-years",
+      "unit": "USD/oz",
+      "value": 22.0
+    }
+  ],
+  "primary_commodity": "Silver",
+  "stage": "Producer",
+  "ticker": "AYA",
+  "trading_currency": "USD"
+}

@@ -14,6 +14,7 @@ class FakeYahooFinanceClient:
             "EURSEK=X": Quote(11.20, "SEK", "2026-09-12T20:00:00+00:00"),
             "SI=F": Quote(64.55, "USD", "2026-09-12T20:00:00+00:00"),
             "GC=F": Quote(4_366.20, "USD", "2026-09-12T20:00:00+00:00"),
+            "HG=F": Quote(4.50, "USD", "2026-09-12T20:00:00+00:00"),
         }
 
     def get_quote(self, ticker: str) -> Quote:
@@ -49,7 +50,7 @@ def test_refresh_market_data_stores_vzla_price_and_required_currency_pair(
         price = database.get_latest_commodity_price(commodity)
         assert price is not None
         assert price.currency == "USD"
-        assert price.unit == "USD/oz"
+        assert price.unit == ("USD/lb" if commodity == "copper" else "USD/oz")
     database.close()
 
 

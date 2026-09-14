@@ -1,0 +1,126 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2025-11-12",
+    "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+    "value": "Developer / permitting"
+  },
+  "name": "Vizsla Silver",
+  "parameters": [
+    {
+      "as_of_date": "2025-11-12",
+      "name": "annual_production_ounces",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "AgEq oz/year",
+      "value": 17383000.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "aisc_per_ounce",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "USD/AgEq oz",
+      "value": 10.61
+    },
+    {
+      "as_of_date": "2026-09-12",
+      "name": "basic_shares_outstanding",
+      "source": "Yahoo Finance",
+      "unit": "shares",
+      "value": 355056872.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "mine_life_years",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "years",
+      "value": 9.4
+    },
+    {
+      "as_of_date": "2024-09-09",
+      "name": "measured_indicated_resource_equivalent_ounces",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-announces-43-increase-in-measured-and-indicated-mineral-resources-at-panuco-including-46-moz-grading-640-g-t-ageq-in-first-measured-resource-estimate/",
+      "unit": "AgEq oz",
+      "value": 222400000.0
+    },
+    {
+      "as_of_date": "2024-09-09",
+      "name": "inferred_resource_equivalent_ounces",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-announces-43-increase-in-measured-and-indicated-mineral-resources-at-panuco-including-46-moz-grading-640-g-t-ageq-in-first-measured-resource-estimate/",
+      "unit": "AgEq oz",
+      "value": 138700000.0
+    },
+    {
+      "as_of_date": "2024-09-09",
+      "name": "total_resource_equivalent_ounces",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-announces-43-increase-in-measured-and-indicated-mineral-resources-at-panuco-including-46-moz-grading-640-g-t-ageq-in-first-measured-resource-estimate/",
+      "unit": "AgEq oz",
+      "value": 361100000.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "study_discount_rate_percent",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "%",
+      "value": 5.0
+    },
+    {
+      "as_of_date": "2025-11-24",
+      "name": "potential_conversion_shares",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-announces-closing-of-us300-million-convertible-senior-notes-offering/",
+      "unit": "shares",
+      "value": 51391860.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "after_tax_npv_usd",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "USD",
+      "value": 1802000000.0
+    },
+    {
+      "as_of_date": "2026-07-31",
+      "name": "cash_usd",
+      "source": "Yahoo Finance balance sheet",
+      "unit": "USD",
+      "value": 406495000.0
+    },
+    {
+      "as_of_date": "2026-07-31",
+      "name": "total_debt_usd",
+      "source": "Yahoo Finance balance sheet",
+      "unit": "USD",
+      "value": 240366000.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "annual_payable_gold_ounces",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "Au oz/year",
+      "value": 83000.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "annual_payable_silver_ounces",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "Ag oz/year",
+      "value": 10130000.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "study_metal_price_gold_usd_per_ounce",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "USD/oz",
+      "value": 3100.0
+    },
+    {
+      "as_of_date": "2025-11-12",
+      "name": "study_metal_price_silver_usd_per_ounce",
+      "source": "https://vizslasilvercorp.com/vizsla-silver-delivers-positive-feasibility-study-for-the-panuco-project/",
+      "unit": "USD/oz",
+      "value": 35.5
+    }
+  ],
+  "primary_commodity": "Silver",
+  "stage": "Developer / permitting",
+  "ticker": "VZLA",
+  "trading_currency": "USD"
+}

@@ -1,0 +1,91 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2026-09-14",
+    "source": "Temporary estimate - verification pending: annual production 14,399,019 AgEq oz/year is Santacruz's reported 2025 actual silver-equivalent production, used as an annual proxy; AISC USD 21.87/Ag oz is Q2 2026 actual AISC per silver ounce sold, used as a current cost proxy on a different period and basis; annual payable silver 5,598,680 oz/year is a temporary proxy; mine life 3 years is an AI-derived average of asset-level estimates and is not a disclosed consolidated attributable mine life; and M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Sources: https://santacruzsilver.com/santacruz-silver-reports-year-end-2025-financial-results/ https://santacruzsilver.com/santacruz-silver-reports-second-quarter-2026-financial-results/ https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+    "value": "Producer"
+  },
+  "name": "Santacruz Silver Mining Ltd.",
+  "parameters": [
+    {
+      "as_of_date": "2026-08-17",
+      "name": "basic_shares_outstanding",
+      "source": "Santacruz Q2 2026 MD&A: 92,990,284 common shares issued and outstanding; 1,039,789 stock options, 452,997 restricted share units, 304,000 performance share units, and 228,750 deferred share units as at the report date, totaling 2,025,536 potential dilution shares. https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/08/2026-Q2-MDA-Santacruz-Silver-Mining.pdf",
+      "unit": "shares",
+      "value": 92990284.0
+    },
+    {
+      "as_of_date": "2026-09-14",
+      "name": "annual_production_ounces",
+      "source": "Temporary estimate - verification pending: annual production 14,399,019 AgEq oz/year is Santacruz's reported 2025 actual silver-equivalent production, used as an annual proxy; AISC USD 21.87/Ag oz is Q2 2026 actual AISC per silver ounce sold, used as a current cost proxy on a different period and basis; annual payable silver 5,598,680 oz/year is a temporary proxy; mine life 3 years is an AI-derived average of asset-level estimates and is not a disclosed consolidated attributable mine life; and M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Sources: https://santacruzsilver.com/santacruz-silver-reports-year-end-2025-financial-results/ https://santacruzsilver.com/santacruz-silver-reports-second-quarter-2026-financial-results/ https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+      "unit": "AgEq oz/year",
+      "value": 14399019.0
+    },
+    {
+      "as_of_date": "2026-09-14",
+      "name": "aisc_per_ounce",
+      "source": "Temporary estimate - verification pending: annual production 14,399,019 AgEq oz/year is Santacruz's reported 2025 actual silver-equivalent production, used as an annual proxy; AISC USD 21.87/Ag oz is Q2 2026 actual AISC per silver ounce sold, used as a current cost proxy on a different period and basis; annual payable silver 5,598,680 oz/year is a temporary proxy; mine life 3 years is an AI-derived average of asset-level estimates and is not a disclosed consolidated attributable mine life; and M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Sources: https://santacruzsilver.com/santacruz-silver-reports-year-end-2025-financial-results/ https://santacruzsilver.com/santacruz-silver-reports-second-quarter-2026-financial-results/ https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+      "unit": "USD/AgEq oz",
+      "value": 21.87
+    },
+    {
+      "as_of_date": "2026-09-14",
+      "name": "mine_life_years",
+      "source": "Temporary estimate - verification pending: annual production 14,399,019 AgEq oz/year is Santacruz's reported 2025 actual silver-equivalent production, used as an annual proxy; AISC USD 21.87/Ag oz is Q2 2026 actual AISC per silver ounce sold, used as a current cost proxy on a different period and basis; annual payable silver 5,598,680 oz/year is a temporary proxy; mine life 3 years is an AI-derived average of asset-level estimates and is not a disclosed consolidated attributable mine life; and M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Sources: https://santacruzsilver.com/santacruz-silver-reports-year-end-2025-financial-results/ https://santacruzsilver.com/santacruz-silver-reports-second-quarter-2026-financial-results/ https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+      "unit": "years",
+      "value": 3.0
+    },
+    {
+      "as_of_date": "2026-01-01",
+      "name": "measured_indicated_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Source: https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+      "unit": "AgEq oz",
+      "value": 102000000.0
+    },
+    {
+      "as_of_date": "2026-01-01",
+      "name": "inferred_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Source: https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+      "unit": "AgEq oz",
+      "value": 224000000.0
+    },
+    {
+      "as_of_date": "2026-01-01",
+      "name": "total_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Source: https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+      "unit": "AgEq oz",
+      "value": 326000000.0
+    },
+    {
+      "as_of_date": "2026-08-17",
+      "name": "potential_dilution_shares",
+      "source": "https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/08/2026-Q2-MDA-Santacruz-Silver-Mining.pdf",
+      "unit": "shares",
+      "value": 2025536.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "cash_usd",
+      "source": "Santacruz Q2 2026 Financial Statements: cash and cash equivalents USD 50.398M and loans payable USD 19.040M at June 30, 2026. Loans payable comprise Banco BISA USD 9.273M, Banco BISA working-capital loan USD 2.049M, and San Lucas promissory notes USD 7.718M. https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/08/2026-Q2-FS-Santacruz-Silver-Mining.pdf",
+      "unit": "USD",
+      "value": 50398000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "total_debt_usd",
+      "source": "Santacruz Q2 2026 Financial Statements: cash and cash equivalents USD 50.398M and loans payable USD 19.040M at June 30, 2026. Loans payable comprise Banco BISA USD 9.273M, Banco BISA working-capital loan USD 2.049M, and San Lucas promissory notes USD 7.718M. https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/08/2026-Q2-FS-Santacruz-Silver-Mining.pdf",
+      "unit": "USD",
+      "value": 19040000.0
+    },
+    {
+      "as_of_date": "2026-09-14",
+      "name": "annual_payable_silver_ounces",
+      "source": "Temporary estimate - verification pending: annual production 14,399,019 AgEq oz/year is Santacruz's reported 2025 actual silver-equivalent production, used as an annual proxy; AISC USD 21.87/Ag oz is Q2 2026 actual AISC per silver ounce sold, used as a current cost proxy on a different period and basis; annual payable silver 5,598,680 oz/year is a temporary proxy; mine life 3 years is an AI-derived average of asset-level estimates and is not a disclosed consolidated attributable mine life; and M&I 102M AgEq oz, inferred 224M AgEq oz, and total 326M AgEq oz are rounded Bolivia-only, 100%-presented resource proxies that exclude Zimapan and are not consolidated attributable resources. Sources: https://santacruzsilver.com/santacruz-silver-reports-year-end-2025-financial-results/ https://santacruzsilver.com/santacruz-silver-reports-second-quarter-2026-financial-results/ https://wp-santacruzsilver-2023.s3.us-west-2.amazonaws.com/media/2026/09/2026-september-sczm-cp.pdf",
+      "unit": "Ag oz/year",
+      "value": 5598680.0
+    }
+  ],
+  "primary_commodity": "Silver",
+  "stage": "Producer",
+  "ticker": "SCZM",
+  "trading_currency": "USD"
+}

@@ -14,8 +14,32 @@ gosimine
 
 Data is stored locally in `data/gosimine.sqlite3`.
 
+The installed `pypdf` dependency supports local text extraction from company reports during
+research; it does not modify the original PDF.
+
 The curated catalog is imported on first launch. Use `python scripts/import_catalog.py` to
 explicitly refresh catalog listings in an existing database; it does not remove personal dossiers.
+
+## Adding Miners
+
+overwriting their researched data. Market and commodity prices are refreshed separately at runtime.
+`seed/miners/*.json` is the canonical, reviewed miner-seed format. It supports complete dossier
+sources and dated multi-project models, which cannot be represented faithfully in a single CSV
+row. Add or revise miner dossiers directly in JSON and validate their structure and behaviour with
+the test suite.
+
+`seed/miner_intake.csv` and `scripts/build_seed.py` are obsolete legacy intake tools retained for
+historical reference. Do not use them for new or updated dossiers. A future export may generate a
+human-readable CSV or Markdown review artifact from the canonical JSON seeds.
+
+Refresh the catalog in an existing local database:
+
+```powershell
+python scripts/import_catalog.py
+```
+
+The app reads the reviewed `seed/miners/` directory. It never processes `miner_intake.csv` at
+launch.
 
 ## Investment Disclaimer
 

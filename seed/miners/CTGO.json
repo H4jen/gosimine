@@ -1,0 +1,97 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2026-09-08",
+    "source": "Contango Silver & Gold Provides Project Updates, September 8, 2026: Contango reports Manh Choh is producing and generating free cash flow. https://contangoore.com/contango-silver-gold-provides-project-updates-2/",
+    "value": "Producer"
+  },
+  "name": "Contango Silver & Gold Inc.",
+  "parameters": [
+    {
+      "as_of_date": "2026-08-05",
+      "name": "basic_shares_outstanding",
+      "source": "Contango Q2 2026 Form 10-Q, cover page: As of August 5, 2026, the registrant had 33,440,691 shares of common stock outstanding. https://contangoore.com/wp-content/uploads/2026/08/CTGO-10Q-20260630_2026taxonomy.pdf",
+      "unit": "shares",
+      "value": 33440691.0
+    },
+    {
+      "as_of_date": "2025-12-31",
+      "name": "annual_production_ounces",
+      "source": "Contango ORE Announces 2025 Year End Financials and Provides 2026 and 2027 Production Guidance, March 16, 2026: FY 2025 production was approximately 60,200 gold equivalent ounces. https://www.contangoore.com/press-release/contango-ore-announces-2025-year-end-financials-and-provides-2026-and-2027-production-guidance",
+      "unit": "AuEq oz/year",
+      "value": 60200.0
+    },
+    {
+      "as_of_date": "2025-12-31",
+      "name": "aisc_per_ounce",
+      "source": "Contango ORE Announces 2025 Year End Financials and Provides 2026 and 2027 Production Guidance, March 16, 2026: FY 2025 all-in sustaining costs were USD 1,616 per ounce sold. https://www.contangoore.com/press-release/contango-ore-announces-2025-year-end-financials-and-provides-2026-and-2027-production-guidance",
+      "unit": "USD/AuEq oz",
+      "value": 1616.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "cash_usd",
+      "source": "Contango Q2 2026 Form 10-Q, June 30, 2026: cash and cash equivalents and restricted cash were USD 89,146,356. https://contangoore.com/wp-content/uploads/2026/08/CTGO-10Q-20260630_2026taxonomy.pdf",
+      "unit": "USD",
+      "value": 89146356.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "total_debt_usd",
+      "source": "Contango Q2 2026 Form 10-Q, June 30, 2026: USD 12.6M was outstanding under the secured credit facility and USD 20.0M under the unsecured convertible debenture, totaling USD 32.6M. https://contangoore.com/wp-content/uploads/2026/08/CTGO-10Q-20260630_2026taxonomy.pdf",
+      "unit": "USD",
+      "value": 32600000.0
+    },
+    {
+      "as_of_date": "2025-12-31",
+      "name": "annual_payable_gold_ounces",
+      "source": "Contango ORE Announces 2025 Year End Financials and Provides 2026 and 2027 Production Guidance, March 16, 2026: 57,800 ounces of gold were sold in FY 2025. https://www.contangoore.com/press-release/contango-ore-announces-2025-year-end-financials-and-provides-2026-and-2027-production-guidance",
+      "unit": "Au oz/year",
+      "value": 57800.0
+    },
+    {
+      "as_of_date": "2025-12-31",
+      "name": "annual_payable_silver_ounces",
+      "source": "Contango ORE Announces 2025 Year End Financials and Provides 2026 and 2027 Production Guidance, March 16, 2026: 57,315 ounces of silver were produced in FY 2025. https://www.contangoore.com/press-release/contango-ore-announces-2025-year-end-financials-and-provides-2026-and-2027-production-guidance",
+      "unit": "Ag oz/year",
+      "value": 57315.0
+    }
+  ],
+  "project_models": [
+    {
+      "as_of_date": "2026-09-14",
+      "name": "Contango three-project temporary model",
+      "projects": [
+        {
+          "aisc_usd_per_equivalent_ounce": 1250,
+          "annual_equivalent_ounces": 75000,
+          "annual_payable_metal_volumes": {"gold": 75000},
+          "after_tax_npv_usd": 29700000,
+          "mine_life_years": 4.5,
+          "name": "Manh Choh (30%)"
+        },
+        {
+          "aisc_usd_per_equivalent_ounce": 860,
+          "annual_equivalent_ounces": 102258,
+          "annual_payable_metal_volumes": {"gold": 102258},
+          "after_tax_npv_usd": 615400000,
+          "mine_life_years": 7,
+          "name": "Johnson Tract (100%)",
+          "total_resource_equivalent_ounces": 1161000
+        },
+        {
+          "aisc_usd_per_equivalent_ounce": 1250,
+          "annual_equivalent_ounces": 45000,
+          "annual_payable_metal_volumes": {"gold": 45000},
+          "mine_life_years": 2.9,
+          "name": "Lucky Shot (100%)",
+          "total_resource_equivalent_ounces": 130730
+        }
+      ],
+      "source": "Temporary estimate - verification pending: Consolidated CTGO model combines Manh Choh at Contango's 30% interest (75,000 AuEq oz/year, USD 1,250/AuEq oz AISC proxy, 4.5 years, USD 29.7M after-tax NPV at 5% and USD 1,600/oz gold), Johnson Tract at 100% (102,258 AuEq oz/year, USD 860/AuEq oz, 7 years, USD 615.4M after-tax NPV, 1,053,000 indicated plus 108,000 inferred AuEq oz), and Lucky Shot at 100% (45,000 AuEq oz/year, USD 1,250/AuEq oz AISC proxy, 2.9 years, 105,620 indicated plus 25,110 inferred Au oz). The USD 645.1M partial NPV excludes Lucky Shot because no comparable study NPV is disclosed. The 1,291,730 AuEq oz partial resource total combines Johnson Tract and Lucky Shot only; it excludes Manh Choh because its disclosed 1M oz figure is a reserve, not a mineral resource. This model combines incompatible study dates and price decks and is not a company-reported consolidated value. Manh Choh's USD 1,250 is 2027 cash-cost guidance used as an AISC proxy. Lucky Shot production is the 40,000-50,000 oz target midpoint; its mine life is calculated from the 130,730 oz 2023 resource divided by that midpoint; its AISC proxy uses Manh Choh's 2027 cash-cost midpoint. Johnson Tract's AuEq production is modelled as gold payable volume solely to allow the existing gold-equivalent engine to calculate. Sources: https://contangoore.com/wp-content/uploads/2026/03/6470afdaf94d2ac9f93d93e0_SIMS-Contango-Manh-Choh-Project-S-K-1300-TRS-FINAL-20230524-1-compressed-1.pdf https://contangoore.com/wp-content/uploads/2026/03/6821f7b4e19f1e3d7995598c_Johnson-Tract-Project-SK1300-Technical-Report-Initial-Assesment-May2025.pdf https://contangoore.com/wp-content/uploads/2026/09/Contango-Silver-Gold-September-2026.pdf https://www.contangoore.com/press-release/contango-ore-announces-2025-year-end-financials-and-provides-2026-and-2027-production-guidance"
+    }
+  ],
+  "primary_commodity": "Gold",
+  "stage": "Producer",
+  "ticker": "CTGO",
+  "trading_currency": "USD"
+}

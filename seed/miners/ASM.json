@@ -1,0 +1,126 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2024-02-05",
+    "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+    "value": "Producer"
+  },
+  "name": "Avino Silver & Gold Mines Ltd.",
+  "parameters": [
+    {
+      "as_of_date": "2024-02-05",
+      "name": "annual_production_ounces",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "AgEq oz/year",
+      "value": 2550000.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "aisc_per_ounce",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "USD/AgEq oz",
+      "value": 26.0
+    },
+    {
+      "as_of_date": "2026-08-12",
+      "name": "basic_shares_outstanding",
+      "source": "https://cdn.prod.website-files.com/68684222725a56e6775e0877/6a7ba1598bf3abd929998d77_ASM-Q2-2026-MD%26A-Final.pdf",
+      "unit": "shares",
+      "value": 169855271.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "mine_life_years",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "years",
+      "value": 9.0
+    },
+    {
+      "as_of_date": "2025-10-31",
+      "name": "measured_indicated_resource_equivalent_ounces",
+      "source": "https://www.avino.com/news/avino-announces-inaugural-consolidated-mineral-reserves",
+      "unit": "AgEq oz",
+      "value": 301000000.0
+    },
+    {
+      "as_of_date": "2025-10-31",
+      "name": "inferred_resource_equivalent_ounces",
+      "source": "https://www.avino.com/news/avino-announces-inaugural-consolidated-mineral-reserves",
+      "unit": "AgEq oz",
+      "value": 87600000.0
+    },
+    {
+      "as_of_date": "2025-10-31",
+      "name": "total_resource_equivalent_ounces",
+      "source": "https://www.avino.com/news/avino-announces-inaugural-consolidated-mineral-reserves",
+      "unit": "AgEq oz",
+      "value": 388600000.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "study_discount_rate_percent",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "%",
+      "value": 5.0
+    },
+    {
+      "as_of_date": "2026-08-12",
+      "name": "potential_dilution_shares",
+      "source": "https://cdn.prod.website-files.com/68684222725a56e6775e0877/6a7ba1598bf3abd929998d77_ASM-Q2-2026-MD%26A-Final.pdf",
+      "unit": "shares",
+      "value": 5115738.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "after_tax_npv_usd",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "USD",
+      "value": 61000000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "cash_usd",
+      "source": "Avino Q2 2026 Financial Statements: cash USD 144.783M at June 30, 2026. Avino 2026 Outlook: debt-free excluding operating equipment leases. https://cdn.prod.website-files.com/68684222725a56e6775e0877/6a7ba14ba4ab5a9ed41b1481_ASM-Q2-2026-FS-Final.pdf https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones",
+      "unit": "USD",
+      "value": 144783000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "total_debt_usd",
+      "source": "Avino Q2 2026 Financial Statements: cash USD 144.783M at June 30, 2026. Avino 2026 Outlook: debt-free excluding operating equipment leases. https://cdn.prod.website-files.com/68684222725a56e6775e0877/6a7ba14ba4ab5a9ed41b1481_ASM-Q2-2026-FS-Final.pdf https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones",
+      "unit": "USD",
+      "value": 0.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "annual_payable_gold_ounces",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "Au oz/year",
+      "value": 6000.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "annual_payable_silver_ounces",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "Ag oz/year",
+      "value": 1100000.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "study_metal_price_gold_usd_per_ounce",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "USD/oz",
+      "value": 1850.0
+    },
+    {
+      "as_of_date": "2024-02-05",
+      "name": "study_metal_price_silver_usd_per_ounce",
+      "source": "Temporary estimate - verification pending: annual production 2,550,000 AgEq oz/year; annual payable silver 1,100,000 oz/year; annual payable gold 6,000 oz/year; and AISC USD 26/AgEq oz are midpoints of Avino's 2026 guidance ranges. Mine life 9 years; after-tax NPV USD 61M; 5% discount rate; gold price USD 1,850/oz; and silver price USD 22/oz are from Avino's February 2024 Oxide Tailings Project PFS only, not a company-wide study. Sources: https://www.avino.com/news/avino-provides-2026-outlook-and-highlights-key-2025-milestones and https://www.avino.com/news/avino-reports-oxide-tailings-project-prefeasibility-study-with-after-tax-npv-of-us-61-million-and-26-irr",
+      "unit": "USD/oz",
+      "value": 22.0
+    }
+  ],
+  "primary_commodity": "Silver",
+  "stage": "Producer",
+  "ticker": "ASM",
+  "trading_currency": "USD"
+}

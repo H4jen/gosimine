@@ -1,0 +1,126 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2026-07-22",
+    "source": "AbraSilver Announces Leadership Appointments as the Company Transitions to Development at Diablillos, July 22, 2026: the DFS is complete, key permits and approvals are in hand, and the Company is advancing toward a final investment decision. https://abrasilver.com/_resources/news/nr-20260722.pdf",
+    "value": "Developer / permitting"
+  },
+  "name": "AbraSilver Resource Corp.",
+  "parameters": [
+    {
+      "as_of_date": "2026-09-10",
+      "name": "basic_shares_outstanding",
+      "source": "AbraSilver Corporate Presentation, September 2026, page 15: basic shares outstanding were 165.5M as of September 10, 2026. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "shares",
+      "value": 165500000.0
+    },
+    {
+      "as_of_date": "2026-09-10",
+      "name": "potential_dilution_shares",
+      "source": "AbraSilver Corporate Presentation, September 2026, page 15: warrants/options were nil/4.7M as of September 10, 2026. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "shares",
+      "value": 4700000.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "annual_production_ounces",
+      "source": "AbraSilver Corporate Presentation, September 2026, pages 6-7, 2026 DFS base case: LOM average silver-equivalent production is 10.3M AgEq oz/year. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "AgEq oz/year",
+      "value": 10300000.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "annual_payable_silver_ounces",
+      "source": "Temporary estimate - verification pending: the 2026 DFS reports LOM-average silver production of 5.9M oz/year, not payable ounces. This model uses reported production as a payable-volume proxy until concentrate/refining payable terms are disclosed. AbraSilver Corporate Presentation, September 2026, page 25. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "Ag oz/year",
+      "value": 5900000.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "annual_payable_gold_ounces",
+      "source": "Temporary estimate - verification pending: the 2026 DFS reports LOM-average gold production of 62 koz/year, not payable ounces. This model uses reported production as a payable-volume proxy until concentrate/refining payable terms are disclosed. AbraSilver Corporate Presentation, September 2026, page 25. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "Au oz/year",
+      "value": 62000.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "aisc_per_ounce",
+      "source": "AbraSilver Corporate Presentation, September 2026, page 6, 2026 DFS base case: LOM-average all-in sustaining costs are USD 19.98/AgEq oz. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "USD/AgEq oz",
+      "value": 19.98
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "mine_life_years",
+      "source": "AbraSilver Corporate Presentation, September 2026, page 6, 2026 DFS base case: mine life is 25 years. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "years",
+      "value": 25.0
+    },
+    {
+      "as_of_date": "2026-05-06",
+      "name": "measured_indicated_resource_equivalent_ounces",
+      "source": "AbraSilver Corporate Presentation, September 2026, page 3: May 2026 total measured and indicated oxide resources are 454M AgEq oz. The NI 43-101 Mineral Resource Estimate has an effective date of May 6, 2026. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667 https://abrasilver.com/_resources/news/nr-20260619.pdf",
+      "unit": "AgEq oz",
+      "value": 454000000.0
+    },
+    {
+      "as_of_date": "2026-05-06",
+      "name": "inferred_resource_equivalent_ounces",
+      "source": "AbraSilver Corporate Presentation, September 2026, page 23: the 2026 DFS resource basis includes 34.2M AgEq oz of tank-leach inferred resource and 8.0M AgEq oz of heap-leach inferred resource. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "AgEq oz",
+      "value": 42200000.0
+    },
+    {
+      "as_of_date": "2026-05-06",
+      "name": "total_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: calculated as 454.0M AgEq oz total measured and indicated oxide resources plus 34.2M AgEq oz tank-leach inferred resource plus 8.0M AgEq oz heap-leach inferred resource, totaling 496.2M AgEq oz. AbraSilver does not explicitly publish this combined M&I-plus-inferred total. AbraSilver Corporate Presentation, September 2026, pages 3 and 23. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "AgEq oz",
+      "value": 496200000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "cash_cad",
+      "source": "Yahoo Finance ABRA.TO quarterly balance sheet, June 30, 2026: cash, cash equivalents and short-term investments were CAD 23.523M. https://finance.yahoo.com/quote/ABRA.TO/balance-sheet/",
+      "unit": "CAD",
+      "value": 23523000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "total_debt_cad",
+      "source": "Temporary estimate - verification pending: zero interest-bearing debt, based on AbraSilver's debt-free balance-sheet characterization. The June 30, 2026 Yahoo Finance ABRA.TO balance-sheet feed does not separately report debt line items; confirm against the issuer's interim financial statements or MD&A when available. https://finance.yahoo.com/quote/ABRA.TO/balance-sheet/",
+      "unit": "CAD",
+      "value": 0.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "after_tax_npv_usd",
+      "source": "AbraSilver Corporate Presentation, September 2026, pages 6 and 9, 2026 DFS base case: after-tax NPV at 5% is USD 3.0B, based on USD 50.00/oz silver and USD 3,650/oz gold. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "USD",
+      "value": 3000000000.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "study_discount_rate_percent",
+      "source": "AbraSilver Corporate Presentation, September 2026, pages 6 and 9, 2026 DFS base case: after-tax NPV is reported at a 5% discount rate. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "%",
+      "value": 5.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "study_metal_price_silver_usd_per_ounce",
+      "source": "AbraSilver Corporate Presentation, September 2026, pages 6 and 9, 2026 DFS base case: USD 50.00/oz silver. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "USD/oz",
+      "value": 50.0
+    },
+    {
+      "as_of_date": "2026-06-22",
+      "name": "study_metal_price_gold_usd_per_ounce",
+      "source": "AbraSilver Corporate Presentation, September 2026, pages 6 and 9, 2026 DFS base case: USD 3,650/oz gold. https://abrasilver.com/_resources/presentations/corporate-presentation.pdf?v=0.667",
+      "unit": "USD/oz",
+      "value": 3650.0
+    }
+  ],
+  "primary_commodity": "Silver",
+  "stage": "Developer / permitting",
+  "ticker": "ABRA.TO",
+  "trading_currency": "CAD"
+}

@@ -1,0 +1,35 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2026-09-10",
+    "source": "Goldgroup September 10, 2026 release: The Company owns and operates the Don David Gold Mine and the Cerro Prieto Gold Mine. https://www.goldgroupmining.com/news/goldgroup-highlights-its-two-producing-mines-and-significant-growth-2026-09-10-doc-120414",
+    "value": "Producer"
+  },
+  "name": "Goldgroup Mining Inc.",
+  "parameters": [
+    {
+      "as_of_date": "2026-09-03",
+      "name": "basic_shares_outstanding",
+      "source": "Goldgroup investor centre, share capitalization as of September 3, 2026: Common Shares Issued and Outstanding 135,650,869. https://www.goldgroupmining.com/investors/",
+      "unit": "shares",
+      "value": 135650869.0
+    },
+    {
+      "as_of_date": "2026-08-31",
+      "name": "cash_usd",
+      "source": "Goldgroup's August 31, 2026 release headline: Cash Balance US $59 Million and Zero Debt. The release states Q2 results cover pre-merger operations; these cash and debt figures are the issuer's combined-company update. https://www.goldgroupmining.com/news/goldgroup-files-second-quarter-2026-financial-results-and-p-2026-09-01-qm-7479314516108805",
+      "unit": "USD",
+      "value": 59000000.0
+    },
+    {
+      "as_of_date": "2026-08-31",
+      "name": "total_debt_usd",
+      "source": "Goldgroup's August 31, 2026 release headline: Cash Balance US $59 Million and Zero Debt. The release states Q2 results cover pre-merger operations; these cash and debt figures are the issuer's combined-company update. https://www.goldgroupmining.com/news/goldgroup-files-second-quarter-2026-financial-results-and-p-2026-09-01-qm-7479314516108805",
+      "unit": "USD",
+      "value": 0.0
+    }
+  ],
+  "primary_commodity": "Gold",
+  "stage": "Producer",
+  "ticker": "GORO",
+  "trading_currency": "USD"
+}

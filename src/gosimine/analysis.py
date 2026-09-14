@@ -23,6 +23,76 @@ class AnalysisInputs:
 
 
 @dataclass(frozen=True)
+class ProjectInputs:
+    name: str
+    annual_payable_metal_volumes: Mapping[str, float]
+    annual_equivalent_ounces: float
+    aisc_usd_per_equivalent_ounce: float
+    mine_life_years: float
+    total_resource_equivalent_ounces: float | None = None
+    after_tax_npv_usd: float | None = None
+
+
+@dataclass(frozen=True)
+class ConsolidatedProjectInputs:
+    annual_payable_metal_volumes: Mapping[str, float]
+    annual_equivalent_ounces: float
+    aisc_usd_per_equivalent_ounce: float
+    mine_life_years: float
+    total_resource_equivalent_ounces: float | None
+    after_tax_npv_usd: float | None
+    partial_total_resource_equivalent_ounces: float | None
+    partial_after_tax_npv_usd: float | None
+
+
+def consolidate_project_inputs(projects: list[ProjectInputs]) -> ConsolidatedProjectInputs:
+    if not projects:
+        raise ValueError("At least one project is required")
+    annual_payable_metal_volumes: dict[str, float] = {}
+    annual_equivalent_ounces = 0.0
+    lifetime_equivalent_ounces = 0.0
+    lifetime_aisc_cost = 0.0
+    resource_values: list[float] = []
+    npv_values: list[float] = []
+    for project in projects:
+        _require_positive(f"{project.name} annual_equivalent_ounces", project.annual_equivalent_ounces)
+        _require_positive(
+            f"{project.name} aisc_usd_per_equivalent_ounce",
+            project.aisc_usd_per_equivalent_ounce,
+        )
+        _require_positive(f"{project.name} mine_life_years", project.mine_life_years)
+        annual_equivalent_ounces += project.annual_equivalent_ounces
+        lifetime_equivalent_ounces += project.annual_equivalent_ounces * project.mine_life_years
+        lifetime_aisc_cost += (
+            project.annual_equivalent_ounces
+            * project.mine_life_years
+            * project.aisc_usd_per_equivalent_ounce
+        )
+        for metal, volume in project.annual_payable_metal_volumes.items():
+            _require_positive(f"{project.name} annual_payable_metal_volumes[{metal}]", volume)
+            annual_payable_metal_volumes[metal] = annual_payable_metal_volumes.get(metal, 0.0) + volume
+        if project.total_resource_equivalent_ounces is not None:
+            _require_positive(
+                f"{project.name} total_resource_equivalent_ounces",
+                project.total_resource_equivalent_ounces,
+            )
+            resource_values.append(project.total_resource_equivalent_ounces)
+        if project.after_tax_npv_usd is not None:
+            _require_positive(f"{project.name} after_tax_npv_usd", project.after_tax_npv_usd)
+            npv_values.append(project.after_tax_npv_usd)
+    return ConsolidatedProjectInputs(
+        annual_payable_metal_volumes=annual_payable_metal_volumes,
+        annual_equivalent_ounces=annual_equivalent_ounces,
+        aisc_usd_per_equivalent_ounce=lifetime_aisc_cost / lifetime_equivalent_ounces,
+        mine_life_years=lifetime_equivalent_ounces / annual_equivalent_ounces,
+        total_resource_equivalent_ounces=sum(resource_values) if len(resource_values) == len(projects) else None,
+        after_tax_npv_usd=sum(npv_values) if len(npv_values) == len(projects) else None,
+        partial_total_resource_equivalent_ounces=sum(resource_values) if resource_values else None,
+        partial_after_tax_npv_usd=sum(npv_values) if npv_values else None,
+    )
+
+
+@dataclass(frozen=True)
 class AnalysisResult:
     annual_metal_value_usd: float
     equivalent_price_usd_per_ounce: float

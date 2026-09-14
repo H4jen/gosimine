@@ -1,6 +1,11 @@
 import pytest
 
-from gosimine.analysis import AnalysisInputs, calculate_analysis
+from gosimine.analysis import (
+    AnalysisInputs,
+    ProjectInputs,
+    calculate_analysis,
+    consolidate_project_inputs,
+)
 
 
 def test_calculate_analysis_with_vizsla_inputs() -> None:
@@ -57,3 +62,35 @@ def test_calculate_analysis_requires_a_price_for_every_metal() -> None:
 
     with pytest.raises(ValueError, match="silver"):
         calculate_analysis(inputs)
+
+
+def test_consolidate_project_inputs_uses_lifetime_weighted_aisc_and_mine_life() -> None:
+    consolidated = consolidate_project_inputs(
+        [
+            ProjectInputs("Mine A", {"gold": 100}, 100, 1_000, 2, 1_000, 100),
+            ProjectInputs("Mine B", {"gold": 300, "silver": 200}, 300, 500, 6, 3_000, 200),
+        ]
+    )
+
+    assert consolidated.annual_payable_metal_volumes == {"gold": 400, "silver": 200}
+    assert consolidated.annual_equivalent_ounces == 400
+    assert consolidated.aisc_usd_per_equivalent_ounce == pytest.approx(550)
+    assert consolidated.mine_life_years == pytest.approx(5)
+    assert consolidated.total_resource_equivalent_ounces == 4_000
+    assert consolidated.after_tax_npv_usd == 300
+    assert consolidated.partial_total_resource_equivalent_ounces == 4_000
+    assert consolidated.partial_after_tax_npv_usd == 300
+
+
+def test_consolidate_project_inputs_withholds_totals_when_a_project_lacks_them() -> None:
+    consolidated = consolidate_project_inputs(
+        [
+            ProjectInputs("Mine A", {"gold": 100}, 100, 1_000, 2, 1_000, 100),
+            ProjectInputs("Mine B", {"gold": 300}, 300, 500, 6),
+        ]
+    )
+
+    assert consolidated.total_resource_equivalent_ounces is None
+    assert consolidated.after_tax_npv_usd is None
+    assert consolidated.partial_total_resource_equivalent_ounces == 1_000
+    assert consolidated.partial_after_tax_npv_usd == 100

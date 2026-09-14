@@ -5,12 +5,12 @@ from datetime import UTC, datetime
 
 import yfinance as yf
 
+from gosimine.commodities import COMMODITIES
 from gosimine.database import Database, Miner
 from gosimine.settings import BASE_CURRENCY
 
 COMMODITY_TICKERS = {
-    "silver": "SI=F",
-    "gold": "GC=F",
+    commodity: definition.yahoo_ticker for commodity, definition in COMMODITIES.items()
 }
 
 
@@ -60,7 +60,15 @@ def refresh_market_data(
     commodity_prices = []
     for commodity, ticker in COMMODITY_TICKERS.items():
         quote = yahoo.get_quote(ticker)
-        commodity_prices.append((commodity, quote.price, quote.currency, quote.market_timestamp))
+        commodity_prices.append(
+            (
+                commodity,
+                quote.price,
+                quote.currency,
+                COMMODITIES[commodity].price_unit,
+                quote.market_timestamp,
+            )
+        )
     currencies = {
         ("USD", miner.trading_currency),
         (miner.trading_currency, display_currency(database)),

@@ -7,7 +7,7 @@ from gosimine.seed import populate_database
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATABASE_PATH = PROJECT_ROOT / "data" / "gosimine.sqlite3"
-SEED_PATH = PROJECT_ROOT / "seed" / "miners.json"
+SEED_PATH = PROJECT_ROOT / "seed" / "miners"
 
 
 def main() -> None:

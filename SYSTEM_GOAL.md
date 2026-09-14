@@ -108,7 +108,7 @@ Every input row displays its value, unit, as-of date, and source. An investor ca
 
 Every analysis metric provides an in-app explanation of its calculation, scope, and limitations. A study-derived NPV also retains the disclosed study metal-price and discount-rate assumptions as separate sourced snapshots. Current-price operating scenarios remain distinct from these study assumptions.
 
-The dashboard supports manual entry of controlled model inputs. A manual entry requires a parameter name, numeric value, unit, as-of date, and source, then appends a dated snapshot rather than replacing an existing fact. Supported names include the standard model parameters and the generic `annual_payable_<metal>_ounces` pattern.
+The dashboard supports manual entry of controlled model inputs. A manual entry requires a parameter name, numeric value, unit, as-of date, and source, then appends a dated snapshot rather than replacing an existing fact. Supported names include the standard model parameters and the generic `annual_payable_<metal>_ounces` and `annual_payable_<metal>_pounds` patterns.
 
 The dashboard also supports a controlled lifecycle-status update. It uses the defined lifecycle values and appends a dated snapshot with its source, preserving prior stages for later review.
 
