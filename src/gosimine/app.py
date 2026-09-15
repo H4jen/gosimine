@@ -3,12 +3,16 @@ from __future__ import annotations
 import json
 import re
 import sys
+from html import escape
+from html.parser import HTMLParser
 from pathlib import Path
 
 from matplotlib import mathtext
 from matplotlib.font_manager import FontProperties
-from PySide6.QtCore import QDate, QTimer, Qt
-from PySide6.QtGui import QColor, QImage, QPalette, QPixmap
+from PySide6.QtCore import QDate, QThread, QTimer, QUrl, Qt, Signal
+from PySide6.QtGui import QColor, QDesktopServices, QImage, QPalette, QPixmap, QTextDocument
+from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -26,8 +30,10 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSlider,
     QSplitter,
     QTableWidget,
@@ -38,22 +44,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gosimine.database import Database, Miner, ParameterSnapshot
+from gosimine.database import Database, Miner
 from gosimine.market_data import refresh_market_data
 from gosimine.commodities import COMMODITIES
 from gosimine.seed import initialize_database
-from gosimine.analysis import (
-    AnalysisInputs,
-    ProjectInputs,
-    calculate_analysis,
-    consolidate_project_inputs,
-)
+from gosimine.analysis import AnalysisInputs, calculate_analysis
+from gosimine.gemini import GeminiCredentials, GeminiError, GeminiResearchClient, build_miner_context
+from gosimine.prompts import PromptDefinitionError, load_prompt_definitions
 from gosimine.settings import (
     APPLICATION_SETTINGS,
     BASE_CURRENCY,
     DEFAULT_SCENARIO_GOLD_PRICE,
     DEFAULT_SCENARIO_SILVER_PRICE,
-    TEXT_SIZE,
 )
 
 
@@ -183,7 +185,7 @@ METRIC_VARIABLES = {
     "NAV / share": "N = after-tax NPV; K = cash; D = debt; S = basic shares.",
     "NAV / SP": "NAV = net asset value; S = basic shares; P = share price.",
     "Risked NAV / share": "NAV = net asset value; S = basic shares; f = development risk factor.",
-    "Risked NAV / SP": "Risked NAV = NAV after applying the risk factor; S = basic shares; P = share price.",
+    "Risked NAV / SP": "Risked NAV = net asset value after the development risk factor; S = basic shares; P = share price.",
     "Future AgEq price": "P'_AgEq = scenario equivalent-metal price; V' = scenario payable-metal value; Q = annual AgEq production.",
     "Future annual margin / share": "m' = scenario annual margin per share; P'_AgEq = scenario equivalent-metal price; C = AISC; q = annual AgEq oz per share.",
     "Future lifetime margin / share": "m'_L = scenario lifetime margin per share; m' = scenario annual margin per share; L = mine life.",
@@ -225,17 +227,11 @@ LIFECYCLE_STATUSES = (
     "Closed / reclaimed",
 )
 
-TEXT_SIZE_POINTS = {"Default": 15, "Large": 17, "Extra large": 19}
-METRIC_WIDTH = 205
-
-
-def application_style(text_size: str = TEXT_SIZE.default_value) -> str:
-    base_size = TEXT_SIZE_POINTS.get(text_size, TEXT_SIZE_POINTS[TEXT_SIZE.default_value])
-    return """
+APPLICATION_STYLE = """
 QMainWindow { background: #d7e0d9; color: #1c2822; }
 QWidget#workspace { background: #d7e0d9; }
 QDialog { background: #ffffff; border: 2px solid #216b4d; color: #1c2822; }
-QWidget { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: {base_size}px; }
+QWidget { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: 13px; }
 QTableWidget, QLineEdit, QComboBox, QDoubleSpinBox, QDateEdit, QTextEdit {
     background: #ffffff; border: 1px solid #cdd6cf; border-radius: 4px; padding: 5px 7px;
 }
@@ -250,45 +246,33 @@ QPushButton {
 QPushButton:hover { background: #eaf1eb; }
 QPushButton#primary-action { background: #216b4d; border-color: #216b4d; color: white; font-weight: 600; }
 QPushButton#primary-action:hover { background: #18563d; }
-QLabel#dashboard-title { color: #183128; font-size: {title_size}px; font-weight: 700; }
+QLabel#dashboard-title { color: #183128; font-size: 24px; font-weight: 700; }
 QLabel#dashboard-subtitle { color: #5a6b61; }
 QLabel#section-heading {
-    border-top: 1px solid #d4ddd6; color: #216b4d; font-size: {heading_size}px; font-weight: 700;
+    border-top: 1px solid #d4ddd6; color: #216b4d; font-size: 15px; font-weight: 700;
     margin-top: 12px; padding-top: 12px;
 }
 QLabel#status-value {
     background: #e2eee6; border: 1px solid #c4d7ca; border-radius: 4px;
     color: #1f583f; font-weight: 600; padding: 8px;
 }
-QLabel#notation-heading { color: #216b4d; font-size: {heading_size}px; font-weight: 700; }
-QLabel#notation-text { color: #1c2822; font-size: {base_size}px; }
-QLabel#metric-guide-title { color: #1c2822; font-size: {guide_size}px; font-weight: 600; }
+QLabel#notation-heading { color: #216b4d; font-size: 15px; font-weight: 700; }
+QLabel#notation-text { color: #1c2822; font-size: 13px; }
+QLabel#metric-guide-title { color: #1c2822; font-size: 14px; font-weight: 600; }
 QLabel#math-formula, QLabel#math-example {
     background: transparent; border: 0; color: #183128; padding: 4px 0;
 }
-QLabel#metric-label {
-    color: #1c2822; font-size: {base_size}px; min-height: 42px;
-    qproperty-wordWrap: true;
-}
-QLabel#metric-value { color: #17365d; font-size: {metric_value_size}px; font-weight: 700; }
-QLabel#metric-marker { color: #1c2822; font-size: {base_size}px; font-weight: 400; }
-QLabel#analysis-note { color: #1c2822; font-size: {base_size}px; }
+QLabel#metric-label { color: #5a6b61; font-size: 11px; }
+QLabel#metric-value { color: #183128; font-size: 20px; font-weight: 700; }
+QLabel#metric-marker { color: #5a6b61; font-size: 11px; font-weight: 400; }
+QLabel#analysis-note { color: #5a6b61; font-size: 10px; }
+QLabel#gemini-heading { color: #183128; font-size: 17px; font-weight: 700; }
+QTextEdit#gemini-question { font-size: 16px; }
+QTextEdit#gemini-answer { background: #fcfdfc; border-color: #b9c9be; font-size: 16px; }
+QLabel#gemini-sources { font-size: 14px; }
 QTabWidget::pane { border: 1px solid #cdd6cf; background: white; }
 QTabBar::tab { padding: 7px 12px; }
-""".replace("{base_size}", str(base_size)).replace(
-        "{title_size}", str(base_size + 13)
-    ).replace("{heading_size}", str(base_size + 3)).replace(
-        "{guide_size}", str(base_size + 1)
-    ).replace("{metric_value_size}", str(base_size + 9))
-
-
-def apply_application_style(database: Database) -> None:
-    application = QApplication.instance()
-    if application is None:
-        return
-    setting = database.get_current_application_setting(TEXT_SIZE.key)
-    text_size = setting.value if setting is not None else TEXT_SIZE.default_value
-    application.setStyleSheet(application_style(text_size))
+"""
 
 
 def is_supported_parameter(parameter: str) -> bool:
@@ -301,12 +285,8 @@ def is_supported_parameter(parameter: str) -> bool:
 
 
 def metric_explanation(label: str) -> str:
-    metric_name = label.split(" (", 1)[0].replace("AuEq", "AgEq")
+    metric_name = label.split(" (", 1)[0]
     return METRIC_EXPLANATIONS.get(metric_name, "Derived from the current stored model inputs.")
-
-
-def equivalent_metal_label(primary_commodity: str) -> str:
-    return "AuEq" if primary_commodity.lower() == "gold" else "AgEq"
 
 
 def configure_dialog(dialog: QDialog) -> None:
@@ -323,6 +303,420 @@ def configure_dialog(dialog: QDialog) -> None:
         dialog.finished.connect(
             lambda _: QTimer.singleShot(0, lambda: (parent.raise_(), parent.activateWindow(), parent.setFocus()))
         )
+
+
+REPORT_STYLE = """
+body { background: #ffffff; color: #1c2822; font-family: 'Noto Sans', 'DejaVu Sans', sans-serif;
+    font-size: 17px; line-height: 1.55; margin: 0; }
+article { box-sizing: border-box; margin: 0; min-height: 100vh; padding: 32px 44px; width: 100%; }
+h1, h2, h3, h4 { color: #183128; line-height: 1.25; margin: 28px 0 12px; }
+h1 { font-size: 28px; } h2 { font-size: 23px; } h3 { font-size: 19px; }
+p { margin: 0 0 14px; } li { margin: 7px 0; }
+table { border-collapse: collapse; margin: 16px 0; width: 100%; }
+th, td { border: 1px solid #cdd6cf; padding: 9px; text-align: left; vertical-align: top; }
+th { background: #e8ece8; color: #183128; }
+pre { background: #edf2ee; overflow-x: auto; padding: 14px; white-space: pre-wrap; }
+a { color: #1769aa; }
+"""
+
+
+class ReportHtmlSanitizer(HTMLParser):
+    allowed_tags = {
+        "a",
+        "article",
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "li",
+        "ol",
+        "p",
+        "pre",
+        "strong",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+    }
+    void_tags = {"br"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attributes) -> None:
+        if tag not in self.allowed_tags:
+            return
+        if tag == "a":
+            href = next((value for name, value in attributes if name == "href"), "")
+            if href and re.match(r"https?://", href, re.IGNORECASE):
+                self.parts.append(f'<a href="{escape(href, quote=True)}">')
+            else:
+                self.parts.append("<a>")
+            return
+        self.parts.append(f"<{tag}>")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self.allowed_tags and tag not in self.void_tags:
+            self.parts.append(f"</{tag}>")
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(escape(data))
+
+
+def report_html(content: str) -> str:
+    if not re.search(
+        r"</?(?:article|blockquote|code|em|h[1-4]|li|ol|p|pre|strong|table|tbody|td|th|thead|tr|ul)\b",
+        content,
+        re.IGNORECASE,
+    ):
+        document = QTextDocument()
+        document.setMarkdown(content)
+        content = document.toHtml()
+    sanitizer = ReportHtmlSanitizer()
+    sanitizer.feed(content)
+    sanitizer.close()
+    return f"<html><head><style>{REPORT_STYLE}</style></head><body><article>{''.join(sanitizer.parts)}</article></body></html>"
+
+
+class GeminiWebReportDialog(QDialog):
+    def __init__(self, html: str, parent: QWidget) -> None:
+        super().__init__(parent)
+        configure_dialog(self)
+        self.setWindowModality(Qt.WindowModality.NonModal)
+        self.setWindowTitle("Gemini report - Web")
+        self.resize(1200, 860)
+        report = QWebEngineView()
+        settings = report.settings()
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, False)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, False)
+        report.page().navigationRequested.connect(self._open_external_link)
+        report.setHtml(report_html(html))
+        layout = QVBoxLayout(self)
+        layout.addWidget(report)
+
+    def _open_external_link(self, request) -> None:
+        url = request.url()
+        if request.isMainFrame() and url.scheme().lower() in {"http", "https"}:
+            QDesktopServices.openUrl(url)
+            request.reject()
+            return
+        request.accept()
+
+
+class GeminiApiKeyDialog(QDialog):
+    def __init__(self, vault_available: bool, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        configure_dialog(self)
+        self.setWindowTitle("Gemini API key")
+        self.key_input = QLineEdit()
+        self.key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.remember_key = QCheckBox("Store securely in this device's credential vault")
+        self.remember_key.setChecked(vault_available)
+        self.remember_key.setEnabled(vault_available)
+        detail = QLabel(
+            "The API key is used only for Gemini requests and is never written to the Gosimine database."
+        )
+        detail.setWordWrap(True)
+
+        layout = QFormLayout(self)
+        layout.addRow(detail)
+        layout.addRow("Gemini API key", self.key_input)
+        layout.addRow(self.remember_key)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok
+        )
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)
+        layout.addRow(buttons)
+
+    def accept(self) -> None:
+        if not self.key_input.text().strip():
+            QMessageBox.warning(self, "Missing API key", "Enter a Gemini API key.")
+            return
+        super().accept()
+
+
+class GeminiRequestThread(QThread):
+    completed = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, request, arguments: tuple) -> None:
+        super().__init__()
+        self.request = request
+        self.arguments = arguments
+
+    def run(self) -> None:
+        try:
+            self.completed.emit(self.request(*self.arguments))
+        except GeminiError as error:
+            self.failed.emit(str(error))
+        except Exception as error:
+            self.failed.emit(f"Gemini request failed: {error}")
+
+
+class GeminiQuestionPanel(QWidget):
+    request_finished = Signal()
+
+    def __init__(
+        self,
+        context: str,
+        credentials: GeminiCredentials,
+        parent: QWidget | None = None,
+        client: GeminiResearchClient | None = None,
+        database: Database | None = None,
+        miner_id: int | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        self.context = context
+        self.credentials = credentials
+        self.client = client or GeminiResearchClient(credentials)
+        self.database = database
+        self.miner_id = miner_id
+        self.question_input = QTextEdit()
+        self.question_input.setObjectName("gemini-question")
+        self.question_input.setPlaceholderText("Ask a research question about this listing")
+        self.question_input.setFixedHeight(100)
+        self.copy_question = QCheckBox("Copy selected question to clipboard instead")
+        self.copy_question.setObjectName("copy-gemini-question")
+        self.progress = QProgressBar()
+        self.progress.setObjectName("gemini-progress")
+        self.progress.setRange(0, 0)
+        self.progress.setFormat("Gemini is researching...")
+        self.progress.hide()
+        self.request_in_progress = False
+        self._request_thread: QThread | None = None
+        self._report_dialog: GeminiWebReportDialog | None = None
+        self._submitted_question = ""
+        self.submitted_question_section = QWidget()
+        self.ask_button = QPushButton("Ask Gemini")
+        self.ask_button.setObjectName("ask-gemini-submit")
+        self.ask_button.setProperty("class", "primary-action")
+        self.ask_button.clicked.connect(self.ask)
+        self.complete_analysis_button = QPushButton("Complete analysis")
+        self.complete_analysis_button.setObjectName("complete-analysis")
+        self.complete_analysis_button.clicked.connect(self.complete_analysis)
+        self.submitted_question_heading = QLabel("Submitted question")
+        self.submitted_question_heading.setObjectName("gemini-heading")
+        self.submitted_question_heading.hide()
+        self.submitted_question_output = QTextEdit()
+        self.submitted_question_output.setObjectName("gemini-submitted-question")
+        self.submitted_question_output.setReadOnly(True)
+        self.submitted_question_output.setMinimumHeight(260)
+        self.submitted_question_output.setStyleSheet(
+            "QTextEdit { background: #f5f8f4; border: 1px solid #b8c8ba; border-radius: 6px; "
+            "color: #183128; font-family: 'Noto Sans', 'DejaVu Sans', sans-serif; "
+            "font-size: 17px; line-height: 1.5; padding: 14px; }"
+        )
+        submitted_question_layout = QVBoxLayout(self.submitted_question_section)
+        submitted_question_layout.setContentsMargins(0, 0, 0, 0)
+        submitted_question_layout.setSpacing(6)
+        submitted_question_layout.addWidget(self.submitted_question_heading)
+        submitted_question_layout.addWidget(self.submitted_question_output)
+        self.submitted_question_section.hide()
+        self.saved_research_status = QLabel()
+        self.saved_research_status.setObjectName("saved-ai-research-status")
+        self.saved_research_status.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
+        self.saved_research_input = QComboBox()
+        self.saved_research_input.setObjectName("saved-ai-research")
+        self.open_latest_button = QPushButton("Open latest saved report")
+        self.open_latest_button.setObjectName("open-latest-ai-research")
+        self.open_latest_button.clicked.connect(self.open_latest_saved_research)
+        self.open_selected_button = QPushButton("Open selected saved report")
+        self.open_selected_button.setObjectName("open-selected-ai-research")
+        self.open_selected_button.clicked.connect(self.open_selected_saved_research)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 24)
+        layout.setSpacing(10)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(QLabel("Question"))
+        layout.addWidget(self.question_input)
+        layout.addWidget(self.copy_question)
+        actions = QHBoxLayout()
+        actions.addWidget(self.ask_button)
+        actions.addWidget(self.complete_analysis_button)
+        actions.addStretch()
+        layout.addLayout(actions)
+        layout.addWidget(self.progress)
+        saved_heading = QLabel("Saved AI research")
+        saved_heading.setObjectName("gemini-heading")
+        layout.addWidget(saved_heading)
+        layout.addWidget(self.saved_research_status)
+        layout.addWidget(self.saved_research_input)
+        saved_actions = QHBoxLayout()
+        saved_actions.addWidget(self.open_latest_button)
+        saved_actions.addWidget(self.open_selected_button)
+        saved_actions.addStretch()
+        layout.addLayout(saved_actions)
+        layout.addWidget(self.submitted_question_section)
+        self._refresh_saved_research()
+
+    def ask(self) -> None:
+        question = self.question_input.toPlainText().strip()
+        if self.copy_question.isChecked():
+            self._copy_to_clipboard(question)
+            return
+        if not question:
+            QMessageBox.warning(self, "Missing question", "Enter a research question.")
+            return
+        if not self._ensure_api_key():
+            return
+        self._submitted_question = question
+        self._show_submitted_question()
+        self._start_request(self.client.ask, question, self.context)
+
+    def complete_analysis(self) -> None:
+        try:
+            prompt = load_prompt_definitions()["complete_analysis"].render(self.context)
+        except (KeyError, PromptDefinitionError) as error:
+            QMessageBox.warning(self, "Prompt unavailable", str(error))
+            return
+        if self.copy_question.isChecked():
+            self._copy_to_clipboard(prompt)
+            return
+        if not self._ensure_api_key():
+            return
+        self._submitted_question = prompt
+        self._show_submitted_question()
+        self._start_request(self.client.ask_prompt, prompt)
+
+    def _start_request(self, request, *arguments) -> None:
+        self.request_in_progress = True
+        self.ask_button.setEnabled(False)
+        self.complete_analysis_button.setEnabled(False)
+        self.progress.show()
+        self._request_thread = GeminiRequestThread(request, arguments)
+        self._request_thread.completed.connect(self._request_succeeded)
+        self._request_thread.failed.connect(self._request_failed)
+        self._request_thread.finished.connect(self._request_thread.deleteLater)
+        self._request_thread.start()
+
+    def _request_succeeded(self, answer) -> None:
+        self._save_research_snapshot(answer)
+        self._display_answer(answer)
+        self._finish_request()
+
+    def _request_failed(self, message: str) -> None:
+        QMessageBox.warning(self, "Gemini unavailable", message)
+        self._finish_request()
+
+    def _finish_request(self) -> None:
+        self.request_in_progress = False
+        self.ask_button.setEnabled(True)
+        self.complete_analysis_button.setEnabled(True)
+        self.progress.hide()
+        self.request_finished.emit()
+
+    def _copy_to_clipboard(self, question: str) -> None:
+        if not question:
+            QMessageBox.warning(self, "Missing question", "Enter a research question.")
+            return
+        QApplication.clipboard().setText(question)
+
+    def _show_submitted_question(self) -> None:
+        self.submitted_question_output.setPlainText(self._submitted_question)
+        self.submitted_question_section.show()
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        self.updateGeometry()
+        self.layout().setAlignment(Qt.AlignmentFlag(0))
+
+    def _save_research_snapshot(self, answer) -> None:
+        if self.database is None or self.miner_id is None:
+            return
+        citations = tuple(
+            {
+                "title": citation.title,
+                "url": citation.url,
+                "start_index": citation.start_index,
+                "end_index": citation.end_index,
+            }
+            for citation in answer.citations
+        )
+        self.database.add_ai_research_snapshot(
+            self.miner_id,
+            self._submitted_question,
+            answer.text,
+            citations,
+            answer.search_queries,
+        )
+        self._refresh_saved_research()
+
+    def _refresh_saved_research(self) -> None:
+        self.saved_research_input.clear()
+        if self.database is None or self.miner_id is None:
+            self.saved_research_status.setText("Saved research is available on the miner dashboard.")
+            self.open_latest_button.setEnabled(False)
+            self.open_selected_button.setEnabled(False)
+            return
+        snapshots = self.database.list_ai_research_snapshots(self.miner_id)
+        if not snapshots:
+            self.saved_research_status.setText("No saved AI research yet.")
+            self.open_latest_button.setEnabled(False)
+            self.open_selected_button.setEnabled(False)
+            return
+        self.saved_research_status.setText(f"Latest saved: {snapshots[0].created_at}")
+        for snapshot in snapshots:
+            question = " ".join(snapshot.question.split())
+            preview = f"{question[:80]}..." if len(question) > 80 else question
+            self.saved_research_input.addItem(f"{snapshot.created_at} - {preview}", snapshot.id)
+        self.open_latest_button.setEnabled(True)
+        self.open_selected_button.setEnabled(True)
+
+    def open_latest_saved_research(self) -> None:
+        if self.database is None or self.miner_id is None:
+            return
+        snapshots = self.database.list_ai_research_snapshots(self.miner_id)
+        if snapshots:
+            self._open_saved_research(snapshots[0].id)
+
+    def open_selected_saved_research(self) -> None:
+        snapshot_id = self.saved_research_input.currentData()
+        if isinstance(snapshot_id, int):
+            self._open_saved_research(snapshot_id)
+
+    def _open_saved_research(self, snapshot_id: int) -> None:
+        if self.database is None or self.miner_id is None:
+            return
+        snapshot = self.database.get_ai_research_snapshot(snapshot_id)
+        if snapshot is None or snapshot.miner_id != self.miner_id:
+            return
+        self._submitted_question = snapshot.question
+        self._show_submitted_question()
+        self._open_web_report(snapshot.response)
+
+    def _display_answer(self, answer) -> None:
+        self._open_web_report(answer.text)
+
+    def _open_web_report(self, html: str) -> None:
+        if self._report_dialog is not None:
+            self._report_dialog.close()
+        self._report_dialog = GeminiWebReportDialog(html, self)
+        self._report_dialog.show()
+
+    def _ensure_api_key(self) -> bool:
+        status = self.credentials.get_key()
+        if status.key:
+            return True
+        dialog = GeminiApiKeyDialog(status.vault_available, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+        key = dialog.key_input.text().strip()
+        if dialog.remember_key.isChecked() and self.credentials.save_to_vault(key):
+            return True
+        self.credentials.set_session_key(key)
+        return True
 
 
 class AddMinerDialog(QDialog):
@@ -891,6 +1285,7 @@ class MinerDashboard(QWidget):
         super().__init__()
         self.database = database
         self.miner = miner
+        self.gemini_credentials = GeminiCredentials()
         self.inputs_visible = False
         self.scenario_prices: dict[str, float] = {}
         self.development_risk_factor = 0.70
@@ -932,27 +1327,21 @@ class MinerDashboard(QWidget):
         self.root_layout.addWidget(tabs, 1)
         overview_tab = QWidget()
         analysis_tab = QWidget()
+        research_tab = QWidget()
         tabs.addTab(overview_tab, "Overview")
         tabs.addTab(analysis_tab, "Analysis")
+        tabs.addTab(research_tab, "AI research")
         overview_layout = QVBoxLayout(overview_tab)
         analysis_layout = QVBoxLayout(analysis_tab)
-        for layout in (
-            overview_layout,
-            analysis_layout,
-        ):
+        research_layout = QVBoxLayout(research_tab)
+        for layout in (overview_layout, analysis_layout):
             layout.setContentsMargins(16, 16, 16, 16)
             layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        research_layout.setContentsMargins(16, 16, 16, 16)
+        research_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.layout = overview_layout
 
         parameters = self.database.list_current_parameters(self.miner.id)
-        parameters, project_model = self._consolidated_project_model_parameters(parameters)
-        has_partial_project_npv = project_model is not None and any(
-            "after_tax_npv_usd" not in project for project in project_model.projects
-        )
-        has_partial_project_resource = project_model is not None and any(
-            "total_resource_equivalent_ounces" not in project
-            for project in project_model.projects
-        )
         statuses = self.database.list_lifecycle_status_history(self.miner.id)
         if statuses:
             status = statuses[0]
@@ -969,14 +1358,6 @@ class MinerDashboard(QWidget):
         overview_heading = QLabel("Sourced baseline")
         overview_heading.setObjectName("section-heading")
         self.layout.addWidget(overview_heading)
-        if project_model is not None:
-            project_model_detail = QLabel(
-                f"Consolidated project model: {project_model.name}\n"
-                f"As of {project_model.as_of_date} | {project_model.source}"
-            )
-            project_model_detail.setObjectName("analysis-note")
-            project_model_detail.setWordWrap(True)
-            self.layout.addWidget(project_model_detail)
         overview_form = QFormLayout()
         overview_parameters = [
             parameter
@@ -1011,6 +1392,15 @@ class MinerDashboard(QWidget):
                 self.layout.addWidget(source_detail)
 
         market_snapshot = self.database.get_latest_market_snapshot(self.miner.id)
+        research_layout.addWidget(
+            GeminiQuestionPanel(
+                self._gemini_context(parameters, market_snapshot),
+                self.gemini_credentials,
+                research_tab,
+                database=self.database,
+                miner_id=self.miner.id,
+            )
+        )
         trading_currency = self.miner.trading_currency
         usd_to_trading_rate = self._usd_to_currency_rate(trading_currency)
         self.layout = analysis_layout
@@ -1031,7 +1421,6 @@ class MinerDashboard(QWidget):
             QLabel(f"Currency conversion unavailable for {trading_currency}.")
             )
         else:
-            equivalent_label = equivalent_metal_label(self.miner.primary_commodity)
             parameter_snapshots = {snapshot.parameter: snapshot for snapshot in parameters}
             parameter_values = {
                 parameter: snapshot.value
@@ -1070,15 +1459,15 @@ class MinerDashboard(QWidget):
                         trading_currency,
                     ),
                 ),
-                (f"{equivalent_label} price ($/{equivalent_label} oz)", self._format_currency_value(analysis.equivalent_price_usd_per_ounce, "USD", "‡")),
-                (f"Margin per {equivalent_label} oz ($)", self._format_currency_value(analysis.margin_usd_per_equivalent_ounce, "USD")),
-                (f"Annual {equivalent_label} oz / share (oz)", f"{analysis.annual_equivalent_ounces_per_share:,.4f}{production_marker}"),
-                (f"Lifetime {equivalent_label} oz / share (oz)", f"{analysis.lifetime_equivalent_ounces_per_share:,.4f}{lifetime_marker}"),
+                ("AgEq price ($/AgEq oz)", self._format_currency_value(analysis.equivalent_price_usd_per_ounce, "USD", "‡")),
+                ("Margin per AgEq oz ($)", self._format_currency_value(analysis.margin_usd_per_equivalent_ounce, "USD")),
+                ("Annual AgEq oz / share (oz)", f"{analysis.annual_equivalent_ounces_per_share:,.4f}{production_marker}"),
+                ("Lifetime AgEq oz / share (oz)", f"{analysis.lifetime_equivalent_ounces_per_share:,.4f}{lifetime_marker}"),
             ):
                 metric = QWidget()
-                metric.setFixedWidth(METRIC_WIDTH)
+                metric.setFixedWidth(180)
                 metric_layout = QVBoxLayout(metric)
-                metric_layout.setContentsMargins(0, 0, 16, 8)
+                metric_layout.setContentsMargins(0, 0, 28, 8)
                 metric_label = QLabel(label)
                 metric_label.setObjectName("metric-label")
                 metric_label.setToolTip(metric_explanation(label))
@@ -1092,7 +1481,7 @@ class MinerDashboard(QWidget):
             self.layout.addLayout(metrics)
             detailed_metrics = [
                 (
-                    f"{'Partial ' if has_partial_project_npv else ''}Risked NAV / share ({self._currency_symbol(trading_currency)})",
+                    f"Risked NAV / share ({self._currency_symbol(trading_currency)})",
                     "Unavailable"
                     if analysis.risked_nav_usd_per_share is None
                     else self._format_currency_value(
@@ -1102,13 +1491,13 @@ class MinerDashboard(QWidget):
                     ),
                 ),
                 (
-                    f"{'Partial ' if has_partial_project_npv else ''}Risked NAV / SP (x)",
+                    "Risked NAV / SP (x)",
                     "Unavailable"
                     if analysis.risked_nav_to_price is None
                     else self._format_ratio(analysis.risked_nav_to_price, "*"),
                 ),
                 (
-                    f"{'Partial ' if has_partial_project_npv else ''}NAV / share ({self._currency_symbol(trading_currency)})",
+                    f"NAV / share ({self._currency_symbol(trading_currency)})",
                     "Unavailable"
                     if analysis.equity_nav_usd_per_share is None
                     else self._format_currency_value(
@@ -1118,7 +1507,7 @@ class MinerDashboard(QWidget):
                     ),
                 ),
                 (
-                    f"{'Partial ' if has_partial_project_npv else ''}NAV / SP (x)",
+                    "NAV / SP (x)",
                     "Unavailable"
                     if analysis.equity_nav_to_price is None
                     else self._format_ratio(analysis.equity_nav_to_price, "*"),
@@ -1127,8 +1516,8 @@ class MinerDashboard(QWidget):
             if analysis.npv_usd_per_share is not None:
                 detailed_metrics.extend(
                     [
-                        (f"{'Partial ' if has_partial_project_npv else ''}After-tax NPV / share ({self._currency_symbol(trading_currency)})", self._format_currency_value(analysis.npv_usd_per_share * usd_to_trading_rate, trading_currency, "*")),
-                        (f"{'Partial ' if has_partial_project_npv else ''}NPV / SP (x)", self._format_ratio(analysis.npv_to_price, "*")),
+                        (f"After-tax NPV / share ({self._currency_symbol(trading_currency)})", self._format_currency_value(analysis.npv_usd_per_share * usd_to_trading_rate, trading_currency, "*")),
+                        ("NPV / SP (x)", self._format_ratio(analysis.npv_to_price, "*")),
                     ]
                 )
             detailed_metrics.append(
@@ -1144,7 +1533,7 @@ class MinerDashboard(QWidget):
             for index, (label, value) in enumerate(detailed_metrics):
                 metric = QWidget()
                 metric_layout = QVBoxLayout(metric)
-                metric_layout.setContentsMargins(0, 8, 16, 8)
+                metric_layout.setContentsMargins(0, 8, 28, 8)
                 metric_label = QLabel(label)
                 metric_label.setObjectName("metric-label")
                 metric_label.setToolTip(metric_explanation(label))
@@ -1153,7 +1542,7 @@ class MinerDashboard(QWidget):
                 )
                 metric_layout.addWidget(metric_label)
                 metric_layout.addWidget(metric_value)
-                metric.setFixedWidth(METRIC_WIDTH)
+                metric.setFixedWidth(180)
                 results.addWidget(metric)
             results.addStretch()
             self.layout.addLayout(results)
@@ -1161,10 +1550,10 @@ class MinerDashboard(QWidget):
             if aisc_snapshot is not None:
                 aisc_row = QHBoxLayout()
                 aisc_metric = QWidget()
-                aisc_metric.setFixedWidth(METRIC_WIDTH)
+                aisc_metric.setFixedWidth(180)
                 aisc_layout = QVBoxLayout(aisc_metric)
-                aisc_layout.setContentsMargins(0, 8, 16, 8)
-                aisc_label = QLabel(f"AISC ($/{equivalent_label} oz)")
+                aisc_layout.setContentsMargins(0, 8, 28, 8)
+                aisc_label = QLabel("AISC ($/AgEq oz)")
                 aisc_label.setObjectName("metric-label")
                 aisc_label.setToolTip(metric_explanation("AISC"))
                 aisc_value = self._metric_value_widget(
@@ -1176,9 +1565,9 @@ class MinerDashboard(QWidget):
                 aisc_row.addWidget(aisc_metric)
                 if mine_life_snapshot is not None:
                     mine_life_metric = QWidget()
-                    mine_life_metric.setFixedWidth(METRIC_WIDTH)
+                    mine_life_metric.setFixedWidth(180)
                     mine_life_layout = QVBoxLayout(mine_life_metric)
-                    mine_life_layout.setContentsMargins(0, 8, 16, 8)
+                    mine_life_layout.setContentsMargins(0, 8, 28, 8)
                     mine_life_label = QLabel("Mine life (years)")
                     mine_life_label.setObjectName("metric-label")
                     mine_life_label.setToolTip(metric_explanation("Mine life"))
@@ -1191,37 +1580,27 @@ class MinerDashboard(QWidget):
                     aisc_row.addWidget(mine_life_metric)
                 aisc_row.addStretch()
                 self.layout.addLayout(aisc_row)
-            lifetime_margin_metric = QWidget()
-            lifetime_margin_metric.setFixedWidth(METRIC_WIDTH)
-            lifetime_margin_layout = QVBoxLayout(lifetime_margin_metric)
-            lifetime_margin_layout.setContentsMargins(0, 8, 16, 8)
-            lifetime_margin_label = QLabel("Lifetime margin / SP (x)")
-            lifetime_margin_label.setObjectName("metric-label")
-            lifetime_margin_label.setToolTip(metric_explanation("Lifetime margin / SP"))
-            lifetime_margin_value = self._metric_value_widget(
-                self._format_ratio(analysis.lifetime_margin_to_price),
-                metric_explanation("Lifetime margin / SP"),
-            )
-            lifetime_margin_layout.addWidget(lifetime_margin_label)
-            lifetime_margin_layout.addWidget(lifetime_margin_value)
-
             resource_snapshot = parameter_snapshots.get("total_resource_equivalent_ounces")
             if analysis.resource_equivalent_ounces_per_share is not None:
                 resource_row = QHBoxLayout()
                 for label, value in (
                     (
-                        f"{'Partial ' if has_partial_project_resource else ''}Resource {equivalent_label} oz / share (oz)",
+                        "Resource AgEq oz / share (oz)",
                         f"{analysis.resource_equivalent_ounces_per_share:,.4f}#",
                     ),
                     (
-                        f"{'Partial ' if has_partial_project_resource else ''}Resource margin / SP (x)",
+                        "Resource margin / SP (x)",
                         self._format_ratio(analysis.resource_margin_to_price, "#"),
+                    ),
+                    (
+                        "Lifetime margin / SP (x)",
+                        self._format_ratio(analysis.lifetime_margin_to_price),
                     ),
                 ):
                     metric = QWidget()
-                    metric.setFixedWidth(METRIC_WIDTH)
+                    metric.setFixedWidth(180)
                     metric_layout = QVBoxLayout(metric)
-                    metric_layout.setContentsMargins(0, 8, 16, 8)
+                    metric_layout.setContentsMargins(0, 8, 28, 8)
                     metric_label = QLabel(label)
                     metric_label.setObjectName("metric-label")
                     metric_label.setToolTip(metric_explanation(label))
@@ -1231,14 +1610,8 @@ class MinerDashboard(QWidget):
                     metric_layout.addWidget(metric_label)
                     metric_layout.addWidget(metric_value)
                     resource_row.addWidget(metric)
-                resource_row.addWidget(lifetime_margin_metric)
                 resource_row.addStretch()
                 self.layout.addLayout(resource_row)
-            else:
-                lifetime_margin_row = QHBoxLayout()
-                lifetime_margin_row.addWidget(lifetime_margin_metric)
-                lifetime_margin_row.addStretch()
-                self.layout.addLayout(lifetime_margin_row)
             self._render_scenario_analysis(
                 parameters, market_snapshot, analysis, trading_currency, usd_to_trading_rate
             )
@@ -1328,13 +1701,13 @@ class MinerDashboard(QWidget):
                         ),
                     )
                 )
-                metal_price_note = QLabel(f"‡ {equivalent_label} metal prices: {prices_text}.")
+                metal_price_note = QLabel(f"‡ AgEq metal prices: {prices_text}.")
                 metal_price_note.setObjectName("analysis-note")
                 metal_price_note.setWordWrap(True)
                 self.layout.addWidget(metal_price_note)
             if annual_production_snapshot is not None and shares_snapshot is not None:
                 production_note = QLabel(
-                    f"§ Annual {equivalent_label} oz / share sources: "
+                    "§ Annual AgEq oz / share sources: "
                     f"production: {annual_production_snapshot.source} "
                     f"| As of {annual_production_snapshot.as_of_date}."
                 )
@@ -1348,7 +1721,7 @@ class MinerDashboard(QWidget):
                 and not shared_production_life_source
             ):
                 lifetime_note = QLabel(
-                    f"¶ Lifetime {equivalent_label} oz / share sources: "
+                    "¶ Lifetime AgEq oz / share sources: "
                     f"production: {annual_production_snapshot.source} "
                     f"| As of {annual_production_snapshot.as_of_date}; "
                     f"mine life: {mine_life_snapshot.source} "
@@ -1430,69 +1803,6 @@ class MinerDashboard(QWidget):
             )
         )
 
-    def _consolidated_project_model_parameters(self, parameters):
-        project_model = self.database.get_latest_project_model_snapshot(self.miner.id)
-        if project_model is None:
-            return parameters, None
-        try:
-            projects = [
-                ProjectInputs(
-                    name=str(project["name"]),
-                    annual_payable_metal_volumes={
-                        str(metal): float(volume)
-                        for metal, volume in dict(project["annual_payable_metal_volumes"]).items()
-                    },
-                    annual_equivalent_ounces=float(project["annual_equivalent_ounces"]),
-                    aisc_usd_per_equivalent_ounce=float(
-                        project["aisc_usd_per_equivalent_ounce"]
-                    ),
-                    mine_life_years=float(project["mine_life_years"]),
-                    total_resource_equivalent_ounces=(
-                        float(project["total_resource_equivalent_ounces"])
-                        if project.get("total_resource_equivalent_ounces") is not None
-                        else None
-                    ),
-                    after_tax_npv_usd=(
-                        float(project["after_tax_npv_usd"])
-                        if project.get("after_tax_npv_usd") is not None
-                        else None
-                    ),
-                )
-                for project in project_model.projects
-            ]
-            consolidated = consolidate_project_inputs(projects)
-        except (KeyError, TypeError, ValueError):
-            return parameters, None
-        source = f"Consolidated project model '{project_model.name}': {project_model.source}"
-        snapshots = {snapshot.parameter: snapshot for snapshot in parameters}
-        for parameter in tuple(snapshots):
-            if re.fullmatch(r"annual_payable_[a-z]+_(?:ounces|pounds)", parameter):
-                del snapshots[parameter]
-        values = {
-            "annual_production_ounces": (consolidated.annual_equivalent_ounces, "AgEq oz/year"),
-            "aisc_per_ounce": (consolidated.aisc_usd_per_equivalent_ounce, "USD/AgEq oz"),
-            "mine_life_years": (consolidated.mine_life_years, "years"),
-        }
-        resource_value = (
-            consolidated.total_resource_equivalent_ounces
-            or consolidated.partial_total_resource_equivalent_ounces
-        )
-        if resource_value is not None:
-            values["total_resource_equivalent_ounces"] = (
-                resource_value,
-                "AgEq oz",
-            )
-        npv_value = consolidated.after_tax_npv_usd or consolidated.partial_after_tax_npv_usd
-        if npv_value is not None:
-            values["after_tax_npv_usd"] = (npv_value, "USD")
-        for metal, volume in consolidated.annual_payable_metal_volumes.items():
-            values[f"annual_payable_{metal}_ounces"] = (volume, f"{metal.title()} oz/year")
-        for parameter, (value, unit) in values.items():
-            snapshots[parameter] = ParameterSnapshot(
-                0, self.miner.id, parameter, value, unit, project_model.as_of_date, source
-            )
-        return list(snapshots.values()), project_model
-
     def _financial_value_usd(self, values: dict[str, float], parameter: str) -> float | None:
         usd_value = values.get(f"{parameter}_usd")
         if usd_value is not None:
@@ -1540,7 +1850,6 @@ class MinerDashboard(QWidget):
     def _render_scenario_analysis(
         self, parameters, market_snapshot, current, trading_currency: str, usd_to_trading_rate: float
     ) -> None:
-        equivalent_label = equivalent_metal_label(self.miner.primary_commodity)
         current_prices = self._current_metal_prices(parameters)
         if current_prices is None:
             return
@@ -1591,7 +1900,7 @@ class MinerDashboard(QWidget):
         self.layout.addWidget(future_heading)
         future_metrics = QHBoxLayout()
         metrics = [
-            (f"Future {equivalent_label} price ($/{equivalent_label} oz)", self._format_currency_value(scenario.equivalent_price_usd_per_ounce, "USD")),
+            ("Future AgEq price ($/AgEq oz)", self._format_currency_value(scenario.equivalent_price_usd_per_ounce, "USD")),
             (
                 f"Future annual margin / share ({self._currency_symbol(trading_currency)})",
                 self._format_currency_value(
@@ -1618,7 +1927,7 @@ class MinerDashboard(QWidget):
         for label, value in metrics:
             metric = QWidget()
             metric_layout = QVBoxLayout(metric)
-            metric_layout.setContentsMargins(0, 0, 16, 8)
+            metric_layout.setContentsMargins(0, 0, 28, 8)
             metric_label = QLabel(label)
             metric_label.setObjectName("metric-label")
             metric_label.setToolTip(metric_explanation(label))
@@ -1968,6 +2277,14 @@ class MinerDashboard(QWidget):
             return
         self.render()
 
+    def _gemini_context(self, parameters, market_snapshot) -> str:
+        return build_miner_context(
+            self.miner,
+            parameters,
+            self.database.list_research_entries(self.miner.id),
+            self._calculate_analysis(parameters, market_snapshot),
+        )
+
     def add_research_note(self) -> None:
         dialog = AddResearchEntryDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -2134,17 +2451,16 @@ class MainWindow(QMainWindow):
 
     def open_settings(self) -> None:
         if SettingsDialog(self.database, self).exec() == QDialog.DialogCode.Accepted:
-            apply_application_style(self.database)
             if isinstance(self.detail, MinerDashboard):
                 self.detail.render()
 
 
 def main() -> None:
     application = QApplication(sys.argv)
+    application.setStyleSheet(APPLICATION_STYLE)
     database_path = Path("data") / "gosimine.sqlite3"
     initialize_database(database_path, Path("seed") / "miners")
     database = Database(database_path)
-    apply_application_style(database)
     window = MainWindow(database)
     window.show()
     exit_code = application.exec()

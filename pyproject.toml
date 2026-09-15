@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gosimine"
-version = "0.1.3"
+version = "0.1.4"
 description = "A local-first research workspace for mining companies"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-dependencies = ["matplotlib>=3.9", "PySide6>=6.8", "pypdf>=5", "yfinance>=0.2"]
+dependencies = ["google-genai>=1.0", "keyring>=25.0", "matplotlib>=3.9", "PySide6>=6.8", "pypdf>=5", "yfinance>=0.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

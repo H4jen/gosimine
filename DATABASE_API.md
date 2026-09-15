@@ -203,6 +203,18 @@ class AnalysisScenario:
     created_at: datetime
 ```
 
+```python
+@dataclass(frozen=True)
+class AiResearchSnapshot:
+    id: int
+    miner_id: int
+    question: str
+    response: str
+    citations: tuple[dict[str, object], ...]
+    search_queries: tuple[str, ...]
+    created_at: datetime
+```
+
 The first controlled parameter names are:
 
 - `annual_production_ounces`
@@ -282,6 +294,15 @@ class Database:
     # Personal research memory
     def add_research_entry(...) -> ResearchEntry: ...
     def list_research_entries(self, miner_id: int) -> list[ResearchEntry]: ...
+
+    # Saved Gemini research; prompt, response, citations, and search queries only
+    def add_ai_research_snapshot(...) -> AiResearchSnapshot: ...
+    def get_ai_research_snapshot(
+        self, snapshot_id: int
+    ) -> AiResearchSnapshot | None: ...
+    def list_ai_research_snapshots(
+        self, miner_id: int
+    ) -> list[AiResearchSnapshot]: ...
 
     # Selected-miner market data
     def add_market_snapshot(...) -> MarketSnapshot: ...

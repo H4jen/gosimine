@@ -2,8 +2,7 @@ import os
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEventLoop, QTimer, QUrl, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -12,31 +11,39 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QTableWidget,
     QTabWidget,
+    QTextEdit,
+    QWidget,
 )
 
 from gosimine.app import (
+    GeminiQuestionPanel,
+    GeminiWebReportDialog,
     HistoryDialog,
     MainWindow,
     MetricExplanationDialog,
     MinerDashboard,
     SettingsDialog,
-    application_style,
-    apply_application_style,
-    equivalent_metal_label,
+    report_html,
 )
 from gosimine.database import Database
+from gosimine.gemini import GeminiAnswer, GeminiCitation, GeminiCredentials
 from gosimine.seed import initialize_database
+
+
+def wait_for_gemini_request(panel: GeminiQuestionPanel, request) -> None:
+    event_loop = QEventLoop()
+    panel.request_finished.connect(event_loop.quit)
+    request()
+    QTimer.singleShot(1_000, event_loop.quit)
+    event_loop.exec()
+    assert not panel.request_in_progress
 
 
 def select_seeded_vzla(database: Database):
     return database.select_catalog_miner("VZLA")
-
-
-def test_equivalent_metal_label_matches_the_primary_commodity() -> None:
-    assert equivalent_metal_label("Gold") == "AuEq"
-    assert equivalent_metal_label("Silver") == "AgEq"
 
 
 def test_main_window_selects_a_catalog_miner(tmp_path: Path, monkeypatch) -> None:
@@ -103,24 +110,6 @@ def test_main_window_restores_its_previous_size(tmp_path: Path) -> None:
     assert restored_window.width() == 1500
     assert restored_window.height() == 950
     restored_window.close()
-    database.close()
-
-
-def test_text_size_setting_persists_and_applies_to_the_application(tmp_path: Path) -> None:
-    database = Database(tmp_path / "gosimine.sqlite3")
-    application = QApplication.instance() or QApplication([])
-    dialog = SettingsDialog(database)
-    text_size = dialog.findChild(QComboBox, "text_size")
-
-    assert text_size is not None
-    assert text_size.currentText() == "Default"
-    text_size.setCurrentText("Large")
-    dialog.accept()
-    apply_application_style(database)
-
-    assert database.get_current_application_setting("text_size").value == "Large"
-    assert application.styleSheet() == application_style("Large")
-    dialog.close()
     database.close()
 
 
@@ -235,7 +224,9 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
     assert [tabs.tabText(index) for index in range(tabs.count())] == [
         "Overview",
         "Analysis",
+        "AI research",
     ]
+    assert dashboard.findChild(GeminiQuestionPanel) is not None
     overview_text = "\n".join(
         label.text() for label in tabs.widget(0).findChildren(QLabel)
     )
@@ -275,49 +266,6 @@ def test_miner_dashboard_displays_seeded_vzla_data(tmp_path: Path) -> None:
         button.text() == "Update lifecycle status"
         for button in dashboard.findChildren(QPushButton)
     )
-
-    dashboard.close()
-    database.close()
-
-
-def test_miner_dashboard_displays_seeded_abra_data(tmp_path: Path) -> None:
-    database_path = tmp_path / "gosimine.sqlite3"
-    seed_path = Path(__file__).parents[1] / "seed" / "miners"
-    initialize_database(database_path, seed_path)
-    database = Database(database_path)
-    miner = database.select_catalog_miner("ABRA.TO")
-    database.add_market_snapshot(
-        miner.id,
-        13.70,
-        "CAD",
-        "2026-09-14T20:00:00+00:00",
-        "2026-09-14T21:00:00+00:00",
-        "Yahoo Finance",
-    )
-    for commodity, price in {"silver": 64.55, "gold": 4_366.20}.items():
-        database.add_commodity_price_snapshot(
-            commodity,
-            price,
-            "USD",
-            "USD/oz",
-            "2026-09-14T20:00:00+00:00",
-            "2026-09-14T21:00:00+00:00",
-            "Yahoo Finance",
-        )
-    database.add_exchange_rate_snapshot(
-        "USD", "CAD", 1.40, "2026-09-14T21:00:00+00:00", "Yahoo Finance"
-    )
-
-    application = QApplication.instance() or QApplication([])
-    dashboard = MinerDashboard(database, miner)
-    dashboard.show()
-    application.processEvents()
-    text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
-
-    assert "Analysis unavailable until market and model inputs are refreshed." not in text
-    assert "AgEq price ($/AgEq oz)" in text
-    assert "NAV / share (C$)" in text
-    assert "Lifetime margin / SP (x)" in text
 
     dashboard.close()
     database.close()
@@ -425,39 +373,6 @@ def test_miner_dashboard_includes_copper_in_the_payable_metal_mix(
     assert "Copper 4.50 $/lb" in text
     assert "Future case" in text
 
-    dashboard.close()
-    database.close()
-
-
-def test_miner_dashboard_shows_lifetime_margin_to_price_without_resources(
-    tmp_path: Path,
-) -> None:
-    database = Database(tmp_path / "gosimine.sqlite3")
-    miner = database.add_miner("Gold Producer", "GOLD", "Gold", "Producer")
-    for parameter, value in {
-        "annual_payable_gold_ounces": 100_000,
-        "annual_production_ounces": 100_000,
-        "aisc_per_ounce": 1_000,
-        "mine_life_years": 5,
-        "basic_shares_outstanding": 10_000_000,
-    }.items():
-        database.add_parameter_snapshot(
-            miner.id, parameter, value, "test", "2026-09-14", "Test"
-        )
-    database.add_market_snapshot(
-        miner.id, 10, "USD", "2026-09-14T20:00:00+00:00", "2026-09-14T21:00:00+00:00", "Test"
-    )
-    database.add_commodity_price_snapshot(
-        "gold", 2_000, "USD", "USD/oz", "2026-09-14T20:00:00+00:00", "2026-09-14T21:00:00+00:00", "Test"
-    )
-
-    application = QApplication.instance() or QApplication([])
-    dashboard = MinerDashboard(database, miner)
-    application.processEvents()
-
-    text = "\n".join(label.text() for label in dashboard.findChildren(QLabel))
-    assert "Lifetime margin / SP (x)" in text
-    assert "5.00x" in text
     dashboard.close()
     database.close()
 
@@ -632,6 +547,244 @@ def test_miner_dashboard_refresh_button_updates_market_data(
     assert snapshot is not None
     assert snapshot.price == 4.10
     dashboard.close()
+    database.close()
+
+
+def test_gemini_question_panel_displays_grounded_answer() -> None:
+    class FakeGeminiClient:
+        def ask(self, question: str, context: str) -> GeminiAnswer:
+            assert question == "What is the next catalyst?"
+            assert "Listing: Vizsla Silver (VZLA)" in context
+            return GeminiAnswer(
+                "A permit decision is the next catalyst.",
+                (GeminiCitation("Company release", "https://example.com/release", 0, 34),),
+                ("Vizsla Silver next catalyst",),
+                (),
+            )
+
+    application = QApplication.instance() or QApplication([])
+    credentials = GeminiCredentials()
+    credentials.set_session_key("test-key")
+    panel = GeminiQuestionPanel(
+        "Stored Gosimine dossier:\n- Listing: Vizsla Silver (VZLA)",
+        credentials,
+        client=FakeGeminiClient(),
+    )
+    panel.question_input.setPlainText("What is the next catalyst?")
+    wait_for_gemini_request(panel, panel.ask)
+
+    assert "What is the next catalyst?" in panel.submitted_question_output.toPlainText()
+    assert not panel.submitted_question_output.isHidden()
+    assert panel.submitted_question_output.minimumHeight() == 260
+    assert panel.layout().alignment() == Qt.AlignmentFlag(0)
+    assert panel.sizePolicy().verticalPolicy() == QSizePolicy.Policy.Expanding
+    assert isinstance(panel._report_dialog, GeminiWebReportDialog)
+    panel.close()
+
+
+def test_gemini_question_panel_deduplicates_and_limits_citations() -> None:
+    class FakeGeminiClient:
+        def ask(self, question: str, context: str) -> GeminiAnswer:
+            citations = tuple(
+                GeminiCitation(f"Source {index}", f"https://example.com/{index}", 0, 1)
+                for index in range(13)
+            )
+            return GeminiAnswer("### Summary\n\n**Answer.**", citations + (citations[0],), (), ())
+
+    application = QApplication.instance() or QApplication([])
+    credentials = GeminiCredentials()
+    credentials.set_session_key("test-key")
+    panel = GeminiQuestionPanel("Stored Gosimine dossier:", credentials, client=FakeGeminiClient())
+    panel.question_input.setPlainText("What changed?")
+    wait_for_gemini_request(panel, panel.ask)
+
+    assert isinstance(panel._report_dialog, GeminiWebReportDialog)
+    panel.close()
+
+
+def test_web_report_html_uses_full_available_width() -> None:
+    rendered = report_html("<h1>Report</h1><p>Summary</p>")
+
+    assert "max-width" not in rendered
+    assert "width: 100%" in rendered
+    assert "min-height: 100vh" in rendered
+    assert "<h1>Report</h1>" in rendered
+
+
+def test_web_report_html_renders_legacy_markdown() -> None:
+    rendered = report_html("# Saved report\n\nA prior response.")
+
+    assert "<h1>Saved report</h1>" in rendered
+    assert "<p>A prior response.</p>" in rendered
+
+
+def test_web_report_html_removes_unsafe_model_markup() -> None:
+    rendered = report_html('<p>Safe</p><script>alert(1)</script><a href="javascript:alert(1)">Link</a>')
+
+    assert "<script>" not in rendered
+    assert "javascript:" not in rendered
+    assert "<p>Safe</p>" in rendered
+
+
+def test_gemini_web_report_is_modeless() -> None:
+    application = QApplication.instance() or QApplication([])
+    parent = QWidget()
+    report = GeminiWebReportDialog("# Report", parent)
+
+    assert report.windowModality() == Qt.WindowModality.NonModal
+    report.close()
+    parent.close()
+
+
+def test_gemini_web_report_opens_links_externally(monkeypatch) -> None:
+    opened_urls = []
+
+    class NavigationRequest:
+        def url(self) -> QUrl:
+            return QUrl("https://example.com/report")
+
+        def isMainFrame(self) -> bool:
+            return True
+
+        def reject(self) -> None:
+            opened_urls.append("rejected")
+
+    monkeypatch.setattr(
+        "gosimine.app.QDesktopServices.openUrl", lambda url: opened_urls.append(url.toString())
+    )
+    application = QApplication.instance() or QApplication([])
+    parent = QWidget()
+    report = GeminiWebReportDialog("<a href='https://example.com/report'>Report</a>", parent)
+
+    report._open_external_link(NavigationRequest())
+
+    assert opened_urls == ["https://example.com/report", "rejected"]
+    report.close()
+    parent.close()
+
+
+def test_gemini_web_report_allows_its_internal_document_load() -> None:
+    requests = []
+
+    class NavigationRequest:
+        def url(self) -> QUrl:
+            return QUrl("data:text/html,report")
+
+        def isMainFrame(self) -> bool:
+            return True
+
+        def accept(self) -> None:
+            requests.append("accepted")
+
+        def reject(self) -> None:
+            requests.append("rejected")
+
+    application = QApplication.instance() or QApplication([])
+    parent = QWidget()
+    report = GeminiWebReportDialog("<p>Report</p>", parent)
+
+    report._open_external_link(NavigationRequest())
+
+    assert requests == ["accepted"]
+    report.close()
+    parent.close()
+
+
+def test_gemini_question_panel_copies_question_instead_of_calling_client() -> None:
+    class UnexpectedGeminiClient:
+        def ask(self, question: str, context: str) -> GeminiAnswer:
+            raise AssertionError("Gemini should not be called when copying the question.")
+
+    application = QApplication.instance() or QApplication([])
+    panel = GeminiQuestionPanel(
+        "Stored Gosimine dossier:",
+        GeminiCredentials(),
+        client=UnexpectedGeminiClient(),
+    )
+    panel.question_input.setPlainText("Compare this listing with recent analyst research.")
+    panel.copy_question.setChecked(True)
+    panel.ask()
+    application.processEvents()
+
+    assert QApplication.clipboard().text() == "Compare this listing with recent analyst research."
+    panel.close()
+
+
+def test_gemini_question_panel_submits_complete_analysis_prompt() -> None:
+    class FakeGeminiClient:
+        def ask_prompt(self, prompt: str) -> GeminiAnswer:
+            assert "Produce a complete, decision-focused analysis" in prompt
+            assert "Listing: Vizsla Silver (VZLA)" in prompt
+            return GeminiAnswer("Complete analysis.", (), (), ())
+
+    application = QApplication.instance() or QApplication([])
+    credentials = GeminiCredentials()
+    credentials.set_session_key("test-key")
+    panel = GeminiQuestionPanel(
+        "Stored Gosimine dossier:\n- Listing: Vizsla Silver (VZLA)",
+        credentials,
+        client=FakeGeminiClient(),
+    )
+    wait_for_gemini_request(panel, panel.complete_analysis)
+
+    assert isinstance(panel._report_dialog, GeminiWebReportDialog)
+    panel.close()
+
+
+def test_gemini_question_panel_opens_saved_selected_research(tmp_path: Path) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    miner = database.add_miner("Aurora Gold", "AUG", "Gold", "Producer")
+    snapshot = database.add_ai_research_snapshot(
+        miner.id, "What changed?", "A feasibility study was published.", (), ()
+    )
+    application = QApplication.instance() or QApplication([])
+    panel = GeminiQuestionPanel(
+        "Stored Gosimine dossier:", GeminiCredentials(), database=database, miner_id=miner.id
+    )
+
+    assert panel.open_latest_button.isEnabled()
+    assert panel.open_selected_button.isEnabled()
+    assert panel.saved_research_input.currentData() == snapshot.id
+    panel.open_selected_saved_research()
+    application.processEvents()
+
+    assert "What changed?" in panel.submitted_question_output.toPlainText()
+    assert isinstance(panel._report_dialog, GeminiWebReportDialog)
+    panel.close()
+    database.close()
+
+
+def test_gemini_question_panel_saves_completed_research(tmp_path: Path) -> None:
+    class FakeGeminiClient:
+        def ask(self, question: str, context: str) -> GeminiAnswer:
+            return GeminiAnswer(
+                "The feasibility study was published.",
+                (GeminiCitation("Issuer release", "https://example.com/release", 0, 36),),
+                ("Aurora Gold feasibility study",),
+                (),
+            )
+
+    database = Database(tmp_path / "gosimine.sqlite3")
+    miner = database.add_miner("Aurora Gold", "AUG", "Gold", "Producer")
+    application = QApplication.instance() or QApplication([])
+    credentials = GeminiCredentials()
+    credentials.set_session_key("test-key")
+    panel = GeminiQuestionPanel(
+        "Stored Gosimine dossier:",
+        credentials,
+        client=FakeGeminiClient(),
+        database=database,
+        miner_id=miner.id,
+    )
+    panel.question_input.setPlainText("What changed?")
+    wait_for_gemini_request(panel, panel.ask)
+
+    snapshot = database.list_ai_research_snapshots(miner.id)[0]
+    assert snapshot.question == "What changed?"
+    assert snapshot.response == "The feasibility study was published."
+    assert snapshot.citations[0]["url"] == "https://example.com/release"
+    assert snapshot.search_queries == ("Aurora Gold feasibility study",)
+    panel.close()
     database.close()
 
 

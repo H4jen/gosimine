@@ -90,6 +90,25 @@ def test_add_and_list_research_entries_newest_first(tmp_path: Path) -> None:
     database.close()
 
 
+def test_ai_research_snapshots_preserve_prompts_and_grounding_metadata(tmp_path: Path) -> None:
+    database = Database(tmp_path / "gosimine.sqlite3")
+    miner = database.add_miner("Aurora Gold", "aug", "Gold", "Producer")
+    first = database.add_ai_research_snapshot(
+        miner.id,
+        "What changed?",
+        "The feasibility study was published.",
+        ({"title": "Issuer release", "url": "https://example.com/release", "start_index": 0, "end_index": 34},),
+        ("Aurora Gold feasibility study",),
+    )
+    second = database.add_ai_research_snapshot(
+        miner.id, "What are the risks?", "Financing remains a risk.", (), ()
+    )
+
+    assert database.get_ai_research_snapshot(first.id) == first
+    assert database.list_ai_research_snapshots(miner.id) == [second, first]
+    database.close()
+
+
 def test_import_miner_seed_is_idempotent(tmp_path: Path) -> None:
     database = Database(tmp_path / "gosimine.sqlite3")
     record = {
@@ -299,6 +318,7 @@ def test_populate_database_adds_seed_without_removing_existing_research(
         "AYA",
         "CTGO",
         "GORO",
+        "KUYA.CN",
         "SCZM",
         "TSK.TO",
         "VZLA",

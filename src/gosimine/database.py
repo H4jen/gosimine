@@ -133,6 +133,17 @@ class ProjectModelSnapshot:
     source: str
 
 
+@dataclass(frozen=True)
+class AiResearchSnapshot:
+    id: int
+    miner_id: int
+    question: str
+    response: str
+    citations: tuple[dict[str, object], ...]
+    search_queries: tuple[str, ...]
+    created_at: str
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -308,6 +319,19 @@ class Database:
                 as_of_date TEXT NOT NULL,
                 source TEXT NOT NULL,
                 UNIQUE (miner_id, name, projects, as_of_date, source)
+            )
+            """
+        )
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_research_snapshots (
+                id INTEGER PRIMARY KEY,
+                miner_id INTEGER NOT NULL REFERENCES miners(id),
+                question TEXT NOT NULL,
+                response TEXT NOT NULL,
+                citations TEXT NOT NULL,
+                search_queries TEXT NOT NULL,
+                created_at TEXT NOT NULL
             )
             """
         )
@@ -855,6 +879,59 @@ class Database:
         ).fetchall()
         return [self._analysis_scenario_from_row(row) for row in rows]
 
+    def add_ai_research_snapshot(
+        self,
+        miner_id: int,
+        question: str,
+        response: str,
+        citations: tuple[dict[str, object], ...],
+        search_queries: tuple[str, ...],
+    ) -> AiResearchSnapshot:
+        if not question.strip():
+            raise ValueError("AI research question is required")
+        if not response.strip():
+            raise ValueError("AI research response is required")
+        values = (
+            miner_id,
+            question.strip(),
+            response.strip(),
+            json.dumps(citations),
+            json.dumps(search_queries),
+            datetime.now(timezone.utc).isoformat(),
+        )
+        cursor = self.connection.execute(
+            "INSERT INTO ai_research_snapshots "
+            "(miner_id, question, response, citations, search_queries, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            values,
+        )
+        self.connection.commit()
+        return AiResearchSnapshot(
+            cursor.lastrowid,
+            values[0],
+            values[1],
+            values[2],
+            tuple(json.loads(values[3])),
+            tuple(json.loads(values[4])),
+            values[5],
+        )
+
+    def get_ai_research_snapshot(self, snapshot_id: int) -> AiResearchSnapshot | None:
+        row = self.connection.execute(
+            "SELECT id, miner_id, question, response, citations, search_queries, created_at "
+            "FROM ai_research_snapshots WHERE id = ?",
+            (snapshot_id,),
+        ).fetchone()
+        return self._ai_research_snapshot_from_row(row) if row else None
+
+    def list_ai_research_snapshots(self, miner_id: int) -> list[AiResearchSnapshot]:
+        rows = self.connection.execute(
+            "SELECT id, miner_id, question, response, citations, search_queries, created_at "
+            "FROM ai_research_snapshots WHERE miner_id = ? ORDER BY created_at DESC, id DESC",
+            (miner_id,),
+        ).fetchall()
+        return [self._ai_research_snapshot_from_row(row) for row in rows]
+
     def add_project_model_snapshot(
         self,
         miner_id: int,
@@ -921,6 +998,18 @@ class Database:
             name=row["name"],
             metal_prices_usd=json.loads(row["metal_prices_usd"]),
             development_risk_factor=row["development_risk_factor"],
+            created_at=row["created_at"],
+        )
+
+    @staticmethod
+    def _ai_research_snapshot_from_row(row: sqlite3.Row) -> AiResearchSnapshot:
+        return AiResearchSnapshot(
+            id=row["id"],
+            miner_id=row["miner_id"],
+            question=row["question"],
+            response=row["response"],
+            citations=tuple(json.loads(row["citations"])),
+            search_queries=tuple(json.loads(row["search_queries"])),
             created_at=row["created_at"],
         )
 

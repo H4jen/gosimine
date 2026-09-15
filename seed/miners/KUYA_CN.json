@@ -1,0 +1,154 @@
+{
+  "lifecycle_status": {
+    "as_of_date": "2026-07-21",
+    "source": "Kuya Silver Achieves Record Q2 Production at Bethania Mine, July 21, 2026: Bethania is in production ramp-up, with a Phase 1 target of 350 tonnes per day. https://kuyasilver.com/news/news/2026-news/kuya-silver-achieves-record-q2-production-at-bethania-mine-2026-07-21-043502",
+    "value": "Producer"
+  },
+  "name": "Kuya Silver Corporation",
+  "parameters": [
+    {
+      "as_of_date": "2026-09-01",
+      "name": "basic_shares_outstanding",
+      "source": "Kuya Silver Corporate Presentation, September 2026, page 21: 195M shares outstanding. https://kuyasilver.com/images/pdf/corporate_presentation/2026/Kuya%20Sept%202026%20v1.pdf",
+      "unit": "shares",
+      "value": 195000000.0
+    },
+    {
+      "as_of_date": "2026-09-01",
+      "name": "potential_dilution_shares",
+      "source": "Kuya Silver Corporate Presentation, September 2026, page 21: 37M warrants plus 4M options and RSUs, totaling 41M potential dilution shares. https://kuyasilver.com/images/pdf/corporate_presentation/2026/Kuya%20Sept%202026%20v1.pdf",
+      "unit": "shares",
+      "value": 41000000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "annual_production_ounces",
+      "source": "Temporary estimate - verification pending: 1.0M AgEq oz/year is the Bethania Silver Project's 2023 PEA average annual production, not current ramp-up guidance. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "AgEq oz/year",
+      "value": 1000000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "annual_payable_silver_ounces",
+      "source": "Temporary estimate - verification pending: 0.8M oz/year payable silver is the Bethania Silver Project's 2023 PEA average annual payable production, not current ramp-up guidance. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "Ag oz/year",
+      "value": 800000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "annual_payable_gold_ounces",
+      "source": "Temporary estimate - verification pending: 1,300 oz/year payable gold is the Bethania Silver Project's 2023 PEA average annual payable production, not current ramp-up guidance. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "Au oz/year",
+      "value": 1300.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "annual_payable_lead_pounds",
+      "source": "Temporary estimate - verification pending: 2.1M lb/year payable lead is the Bethania Silver Project's 2023 PEA average annual payable production, not current ramp-up guidance. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "lb/year",
+      "value": 2100000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "annual_payable_zinc_pounds",
+      "source": "Temporary estimate - verification pending: 3.0M lb/year payable zinc is the Bethania Silver Project's 2023 PEA average annual payable production, not current ramp-up guidance. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "lb/year",
+      "value": 3000000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "aisc_per_ounce",
+      "source": "Temporary estimate - verification pending: USD 13.11/AgEq oz is the Bethania Silver Project's 2023 PEA all-in sustaining cost, not current operating cost guidance. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "USD/AgEq oz",
+      "value": 13.11
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "mine_life_years",
+      "source": "Temporary estimate - verification pending: 6.3 years is the Bethania Silver Project's 2023 PEA mine life, not a current company-wide mine plan. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "years",
+      "value": 6.3
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "measured_indicated_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: 18.5M AgEq oz measured and indicated resource is the Bethania Silver Project's 2023 PEA resource basis. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "AgEq oz",
+      "value": 18500000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "inferred_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: 7.2M AgEq oz inferred resource is the Bethania Silver Project's 2023 PEA resource basis. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "AgEq oz",
+      "value": 7200000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "total_resource_equivalent_ounces",
+      "source": "Temporary estimate - verification pending: calculated as 18.5M AgEq oz measured and indicated plus 7.2M AgEq oz inferred resources from the Bethania Silver Project's 2023 PEA, totaling 25.7M AgEq oz. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "AgEq oz",
+      "value": 25700000.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "cash_cad",
+      "source": "Yahoo Finance KUYA.CN quarterly balance sheet, June 30, 2026: cash and cash equivalents were CAD 25.534M. https://finance.yahoo.com/quote/KUYA.CN/balance-sheet/",
+      "unit": "CAD",
+      "value": 25533978.0
+    },
+    {
+      "as_of_date": "2026-06-30",
+      "name": "total_debt_cad",
+      "source": "Temporary estimate - verification pending: zero interest-bearing debt. The June 30, 2026 Yahoo Finance KUYA.CN balance-sheet feed does not report total, current, or long-term debt; confirm against Kuya Silver's interim financial statements or MD&A.",
+      "unit": "CAD",
+      "value": 0.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "after_tax_npv_usd",
+      "source": "Temporary estimate - verification pending: USD 82.2M after-tax NPV at 8% is from the Bethania Silver Project's 2023 PEA, not a current company-wide valuation. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "USD",
+      "value": 82200000.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "study_discount_rate_percent",
+      "source": "Temporary estimate - verification pending: 8% is the Bethania Silver Project's 2023 PEA after-tax NPV discount rate. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "%",
+      "value": 8.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "study_metal_price_silver_usd_per_ounce",
+      "source": "Temporary estimate - verification pending: USD 23.00/oz silver is the Bethania Silver Project's 2023 PEA study price. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "USD/oz",
+      "value": 23.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "study_metal_price_gold_usd_per_ounce",
+      "source": "Temporary estimate - verification pending: USD 1,800/oz gold is the Bethania Silver Project's 2023 PEA study price. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "USD/oz",
+      "value": 1800.0
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "study_metal_price_lead_usd_per_pound",
+      "source": "Temporary estimate - verification pending: USD 0.95/lb lead is the Bethania Silver Project's 2023 PEA study price. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "USD/lb",
+      "value": 0.95
+    },
+    {
+      "as_of_date": "2023-10-20",
+      "name": "study_metal_price_zinc_usd_per_pound",
+      "source": "Temporary estimate - verification pending: USD 1.20/lb zinc is the Bethania Silver Project's 2023 PEA study price. Kuya Silver Bethania Silver Project NI 43-101 Amended and Restated Technical Report PEA, October 20, 2023. https://kuyasilver.com/images/pdf/KUYA_Bethania_Silver_Project_-_NI_43-101_Amended_and_Restated_Technical_Report_PEA_October_20_2023.pdf",
+      "unit": "USD/lb",
+      "value": 1.2
+    }
+  ],
+  "primary_commodity": "Silver",
+  "stage": "Producer",
+  "ticker": "KUYA.CN",
+  "trading_currency": "CAD"
+}
